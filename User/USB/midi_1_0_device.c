@@ -1,314 +1,82 @@
-/******************************************************************************
- * @file     hid_mouse.c
- * @brief    NUC100 series USBD HID mouse sample file
+/*
+ * midi_1_0_device.c
  *
- * @note
- * Copyright (C) 2013 Nuvoton Technology Corp. All rights reserved.
- ******************************************************************************/
+ *  Created on: Sep 18, 2023
+ *      Author: matt
+ */
 
-/*!<Includes */
-#include <string.h>
-#include "NUC100Series.h"
-#include "usbd.h"
-#include "midi_1_0_device.h"
+#include "midi_1_0_driver.h"
+#include "midi_spec.h"
+#include <stdint.h>
+#include <stdbool.h>
 
-uint8_t volatile g_u8EP2Ready = 0;
-uint8_t volatile g_u8Suspend = 0;
-uint8_t g_u8Idle = 0;
-uint8_t g_u8Protocol = 0;
-
-void EP2_Handler(void);
-
-void USBD_IRQHandler(void)
+void midi_1_0_init()
 {
-    uint32_t u32IntSts = USBD_GET_INT_FLAG();
-    uint32_t u32State = USBD_GET_BUS_STATE();
-
-//------------------------------------------------------------------
-    if(u32IntSts & USBD_INTSTS_FLDET_STS_Msk)
-    {
-        // Floating detect
-        USBD_CLR_INT_FLAG(USBD_INTSTS_FLDET_STS_Msk);
-
-        if(USBD_IS_ATTACHED())
-        {
-            /* USB Plug In */
-            USBD_ENABLE_USB();
-        }
-        else
-        {
-            /* USB Un-plug */
-            USBD_DISABLE_USB();
-        }
-    }
-
-//------------------------------------------------------------------
-    if(u32IntSts & USBD_INTSTS_WAKEUP)
-    {
-        /* Clear event flag */
-        USBD_CLR_INT_FLAG(USBD_INTSTS_WAKEUP);
-    }
-
-//------------------------------------------------------------------
-    if(u32IntSts & USBD_INTSTS_BUS_STS_Msk)
-    {
-        /* Clear event flag */
-        USBD_CLR_INT_FLAG(USBD_INTSTS_BUS_STS_Msk);
-
-        if(u32State & USBD_ATTR_USBRST_Msk)
-        {
-            /* Bus reset */
-            USBD_ENABLE_USB();
-            USBD_SwReset();
-            g_u8Suspend = 0;
-        }
-        if(u32State & USBD_ATTR_SUSPEND_Msk)
-        {
-            /* Enter power down to wait USB attached */
-            g_u8Suspend = 1;
-
-            /* Enable USB but disable PHY */
-            USBD_DISABLE_PHY();
-        }
-        if(u32State & USBD_ATTR_RESUME_Msk)
-        {
-            /* Enable USB and enable PHY */
-            USBD_ENABLE_USB();
-            g_u8Suspend = 0;
-        }
-    }
-
-//------------------------------------------------------------------
-    if(u32IntSts & USBD_INTSTS_USB_STS_Msk)
-    {
-        // USB event
-        if(u32IntSts & USBD_INTSTS_SETUP_Msk)
-        {
-            // Setup packet
-            /* Clear event flag */
-            USBD_CLR_INT_FLAG(USBD_INTSTS_SETUP_Msk);
-
-            /* Clear the data IN/OUT ready flag of control end-points */
-            USBD_STOP_TRANSACTION(EP0);
-            USBD_STOP_TRANSACTION(EP1);
-
-            USBD_ProcessSetupPacket();
-        }
-
-        // EP events
-        if(u32IntSts & USBD_INTSTS_EP0)
-        {
-            /* Clear event flag */
-            USBD_CLR_INT_FLAG(USBD_INTSTS_EP0);
-            // control IN
-            USBD_CtrlIn();
-        }
-
-        if(u32IntSts & USBD_INTSTS_EP1)
-        {
-            /* Clear event flag */
-            USBD_CLR_INT_FLAG(USBD_INTSTS_EP1);
-
-            // control OUT
-            USBD_CtrlOut();
-        }
-
-        if(u32IntSts & USBD_INTSTS_EP2)
-        {
-            /* Clear event flag */
-            USBD_CLR_INT_FLAG(USBD_INTSTS_EP2);
-            // Interrupt IN
-            EP2_Handler();
-        }
-
-        if(u32IntSts & USBD_INTSTS_EP3)
-        {
-            /* Clear event flag */
-            USBD_CLR_INT_FLAG(USBD_INTSTS_EP3);
-        }
-
-        if(u32IntSts & USBD_INTSTS_EP4)
-        {
-            /* Clear event flag */
-            USBD_CLR_INT_FLAG(USBD_INTSTS_EP4);
-        }
-
-        if(u32IntSts & USBD_INTSTS_EP5)
-        {
-            /* Clear event flag */
-            USBD_CLR_INT_FLAG(USBD_INTSTS_EP5);
-        }
-    }
+	midi_1_0_driver_init();
 }
 
-void EP2_Handler(void)  /* Interrupt IN handler */
+void midi_1_0_note_on(uint8_t note, uint8_t channel, uint16_t velocity)
 {
-    g_u8EP2Ready = 1;
+	uint32_t message = CIN_NOTE_ON | ((MIDI_NOTE_ON << 8) | channel) | (note << 16) | (velocity << 24);
+	midi_1_0_driver_tx(message);
 }
 
-
-/*--------------------------------------------------------------------------*/
-/**
-  * @brief  USBD Endpoint Config.
-  * @param  None.
-  * @retval None.
-  */
-void midi_1_0_init(void)
+void midi_1_0_note_off(uint8_t note, uint8_t channel, uint16_t velocity)
 {
-    /* Init setup packet buffer */
-    /* Buffer range for setup packet -> [0 ~ 0x7] */
-    USBD->STBUFSEG = SETUP_BUF_BASE;
-
-    /*****************************************************/
-    /* EP0 ==> control IN endpoint, address 0 */
-    USBD_CONFIG_EP(EP0, USBD_CFG_CSTALL | USBD_CFG_EPMODE_IN | 0);
-    /* Buffer range for EP0 */
-    USBD_SET_EP_BUF_ADDR(EP0, EP0_BUF_BASE);
-
-    /* EP1 ==> control OUT endpoint, address 0 */
-    USBD_CONFIG_EP(EP1, USBD_CFG_CSTALL | USBD_CFG_EPMODE_OUT | 0);
-    /* Buffer range for EP1 */
-    USBD_SET_EP_BUF_ADDR(EP1, EP1_BUF_BASE);
-
-    /*****************************************************/
-    /* EP2 ==> Interrupt IN endpoint, address 1 */
-    USBD_CONFIG_EP(EP2, USBD_CFG_EPMODE_IN | USBD_MIDI10_EP_IN_ADDR);
-    /* Buffer range for EP2 */
-    USBD_SET_EP_BUF_ADDR(EP2, EP2_BUF_BASE);
-
-    /* EP3 ==> Interrupt OUT endpoint, address 2 */
-	USBD_CONFIG_EP(EP3, USBD_CFG_EPMODE_OUT | USBD_MIDI10_EP_OUT_ADDR);
-	/* Buffer range for EP3 */
-	USBD_SET_EP_BUF_ADDR(EP3, EP3_BUF_BASE);
-	/* trigger to receive OUT data */
-	USBD_SET_PAYLOAD_LEN(EP3, EP3_MAX_PKT_SIZE);
-
-    /* start to IN data */
-    g_u8EP2Ready = 1;
+	uint32_t message = CIN_NOTE_OFF | ((MIDI_NOTE_OFF << 8) | channel) | (note << 16);
+	midi_1_0_driver_tx(message);
 }
 
-//void midi_1_0_class_request(void)
-//{
-//    uint8_t buf[8];
-//
-//    USBD_GetSetupPacket(buf);
-//
-//    if(buf[0] & 0x80)    /* request data transfer direction */
-//    {
-////        // Device to host
-////        switch(buf[1])
-////        {
-////            case GET_REPORT:
-//////            {
-//////                break;
-//////            }
-////            case GET_IDLE:
-////            {
-////                USBD_SET_PAYLOAD_LEN(EP1, buf[6]);
-////                /* Data stage */
-////                USBD_PrepareCtrlIn(&g_u8Idle, buf[6]);
-////                /* Status stage */
-////                USBD_PrepareCtrlOut(0, 0);
-////                break;
-////            }
-////            case GET_PROTOCOL:
-////            {
-////                USBD_SET_PAYLOAD_LEN(EP1, buf[6]);
-////                /* Data stage */
-////                USBD_PrepareCtrlIn(&g_u8Protocol, buf[6]);
-////                /* Status stage */
-////                USBD_PrepareCtrlOut(0, 0);
-////                break;
-////            }
-////            default:
-////            {
-//                /* Setup error, stall the device */
-//                USBD_SetStall(EP0);
-//                USBD_SetStall(EP1);
-////                break;
-////            }
-////        }
-//    }
-//    else
-//    {
-//        // Host to device
-////        switch(buf[1])
-////        {
-////            case SET_REPORT:
-////            {
-////                if(buf[3] == 3)
-////                {
-////                    /* Request Type = Feature */
-////                    USBD_SET_DATA1(EP1);
-////                    USBD_SET_PAYLOAD_LEN(EP1, 0);
-////                }
-////                break;
-////            }
-////            case SET_IDLE:
-////            {
-////                g_u8Idle = buf[3];
-////                /* Status stage */
-////                USBD_SET_DATA1(EP0);
-////                USBD_SET_PAYLOAD_LEN(EP0, 0);
-////                break;
-////            }
-////            case SET_PROTOCOL:
-////            {
-////                g_u8Protocol = buf[2];
-////                /* Status stage */
-////                USBD_SET_DATA1(EP0);
-////                USBD_SET_PAYLOAD_LEN(EP0, 0);
-////                break;
-////            }
-////            default:
-////            {
-//                // Stall
-//                /* Setup error, stall the device */
-//                USBD_SetStall(EP0);
-//                USBD_SetStall(EP1);
-////                break;
-////            }
-////        }
-//    }
-//}
-
-#define MIDI_1_0_TX_QUEUE_DEPTH 10
-
-uint32_t _midi_1_0_tx_queue[MIDI_1_0_TX_QUEUE_DEPTH];
-uint32_t _midi_1_0_tx_queue_head = 0;
-uint32_t _midi_1_0_tx_queue_tail = 0;
-
-void midi_1_0_tx(uint32_t message)
+void midi_1_0_pitch_wheel(uint8_t channel, int32_t pitch)
 {
-	_midi_1_0_tx_queue[_midi_1_0_tx_queue_head] = message;
-	_midi_1_0_tx_queue_head++;
-	if(_midi_1_0_tx_queue_head >= MIDI_1_0_TX_QUEUE_DEPTH)
-		_midi_1_0_tx_queue_head = 0;
+	pitch = (pitch + 8192) & 0x3FFF;
+	uint32_t pitch_new = (pitch & 0x7F) | ((pitch << 1) & 0x7F00);
+	uint32_t message = CIN_PITCH_BEND | ((MIDI_PITCH_WHEEL << 8) | channel) | (pitch_new << 16);
+	midi_1_0_driver_tx(message);
 }
 
-void HID_UpdateMouseData(void)
+void midi_1_0_modulation_wheel(uint8_t channel, uint16_t modulation)
 {
-    uint8_t *buf;
+	modulation = modulation & 0x3FFF;
 
-    if(g_u8EP2Ready)
-    {
-    	if(_midi_1_0_tx_queue_tail != _midi_1_0_tx_queue_head)
-    	{
-    		buf = (uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP2));
+	uint32_t fine = modulation & 0x7F;
+	uint32_t message = CIN_CONTROL_CHANGE | ((MIDI_CONTROLLER << 8) | channel) | (MIDI_CONT_MOD_WHEEL_FINE << 16) | (fine << 24);
+	midi_1_0_driver_tx(message);
 
-    		uint32_t message = _midi_1_0_tx_queue[_midi_1_0_tx_queue_tail];
-    		_midi_1_0_tx_queue_tail++;
-    		if(_midi_1_0_tx_queue_tail >= MIDI_1_0_TX_QUEUE_DEPTH)
-    			_midi_1_0_tx_queue_tail = 0;
+	uint32_t course = (modulation >> 7) & 0x7F;
+	message = CIN_CONTROL_CHANGE | ((MIDI_CONTROLLER << 8) | channel) | (MIDI_CONT_MOD_WHEEL_COARSE << 16) | (course << 24);
+	midi_1_0_driver_tx(message);
+}
 
-    		memcpy(buf, &message, 4);
-    	}
+void midi_1_0_volume(uint8_t channel, uint16_t volume)
+{
+	volume = volume & 0x3FFF;
 
-        g_u8EP2Ready = 0;
+	uint32_t fine = volume & 0x7F;
+	uint32_t message = CIN_CONTROL_CHANGE | ((MIDI_CONTROLLER << 8) | channel) | (MIDI_CONT_VOLUME_FINE << 16) | (fine << 24);
+	midi_1_0_driver_tx(message);
 
-        /* Set transfer length and trigger IN transfer */
-        USBD_SET_PAYLOAD_LEN(EP2, 4);
-    }
+	uint32_t course = (volume >> 7) & 0x7F;
+	message = CIN_CONTROL_CHANGE | ((MIDI_CONTROLLER << 8) | channel) | (MIDI_CONT_VOLUME_COARSE << 16) | (course << 24);
+	midi_1_0_driver_tx(message);
+}
+
+void midi_1_0_sense()
+{
+	uint32_t message = CIN_SINGLE_BYTE | (MIDI_SENSE << 8);
+	midi_1_0_driver_tx(message);
+}
+
+void midi_1_0_sustain(uint8_t channel, bool on)
+{
+	uint32_t hold_value = on ? 0x7F : 0;
+	uint32_t message = CIN_CONTROL_CHANGE | ((MIDI_CONTROLLER << 8) | channel) | (MIDI_CONT_HOLD_PEDAL << 16) | (hold_value << 24);
+	midi_1_0_driver_tx(message);
+}
+
+void midi_1_0_task()
+{
+	midi_1_0_driver_task();
 }
 
 

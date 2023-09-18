@@ -9,7 +9,8 @@
 *****************************************************************************/
 #include <stdio.h>
 #include "NUC100Series.h"
-#include "midi_1_0_device.h"
+#include "keyboard.h"
+#include "midi_device.h"
 
 
 void SYS_Init(void)
@@ -66,12 +67,16 @@ int main()
     //SYS_LockReg();
 
     USBD_Open(&gsInfo, NULL, NULL);
-    midi_1_0_init();
+    midi_device_init();
     USBD_Start();
     NVIC_EnableIRQ(USBD_IRQn);
 
+    keyboard_init();
+
     do
     {
+    	keyboard_task();
+    	MIDI_DEVICE.task();
 //        printf("Input: ");
 //        ch = getchar();
 //        printf("%c\n", ch);

@@ -6,9 +6,9 @@
  * Copyright (C) 2013 Nuvoton Technology Corp. All rights reserved.
  ******************************************************************************/
 /*!<Includes */
+#include <midi_1_0_driver.h>
 #include "NUC100Series.h"
 #include "usbd.h"
-#include "midi_1_0_device.h"
 
 /*!<USB HID Report Descriptor */
 //uint8_t HID_MouseReportDescriptor[] =

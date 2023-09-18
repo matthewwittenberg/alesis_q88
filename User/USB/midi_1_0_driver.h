@@ -1,6 +1,8 @@
 #ifndef __USBD_HID_H__
 #define __USBD_HID_H__
 
+#include <stdint.h>
+
 /* Define the vendor id and product id */
 #define USBD_VID        0x13B2
 #define USBD_PID        0x0001
@@ -38,9 +40,9 @@
 /*-------------------------------------------------------------*/
 
 /*-------------------------------------------------------------*/
-void midi_1_0_init(void);
-void midi_1_0_tx(uint32_t message);
-//void midi_1_0_class_request(void);
+void midi_1_0_driver_init(void);
+void midi_1_0_driver_tx(uint32_t message);
+void midi_1_0_driver_task(void);
 
 extern uint8_t volatile g_u8Suspend;
 
