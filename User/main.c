@@ -11,6 +11,7 @@
 #include "NUC100Series.h"
 #include "keyboard.h"
 #include "midi_device.h"
+#include "sys_timer.h"
 
 
 void SYS_Init(void)
@@ -65,6 +66,8 @@ int main()
 
     /* Lock protected registers */
     //SYS_LockReg();
+
+    sys_timer_init();
 
     USBD_Open(&gsInfo, NULL, NULL);
     midi_device_init();
