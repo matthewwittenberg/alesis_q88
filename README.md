@@ -69,9 +69,9 @@ To the best of my knowledge, here is the map of microcontroller pins
 |41|ICE_DAT|       |
 |42|ICE_CLK|        |
 |43|AVSS|        |
-|44|PA.0|                        |
-|45|PA.1|     |
-|46|PA.2|   |
+|44|PA.0| volume |
+|45|PA.1| pitch |
+|46|PA.2| modulation |
 |47|PA.3| expression pedal |
 |48|PA.4|                    |
 |49|PA.5|                   |

@@ -14,6 +14,7 @@
 #include "sys_timer.h"
 #include "main_app.h"
 #include "input.h"
+#include "analog.h"
 
 
 void SYS_Init(void)
@@ -78,6 +79,7 @@ int main()
 
     keyboard_init();
     input_init();
+    analog_init();
 
     // never return...
     main_app();
