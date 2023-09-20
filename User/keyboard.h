@@ -25,8 +25,6 @@ typedef void (*keyboard_event_callback)(KEYBOARD_EVENT_T event, uint8_t note, in
 
 void keyboard_init();
 void keyboard_task();
-uint8_t keyboard_get_start_note();
-void keyboard_set_start_note(uint8_t note);
 void keyboard_register_callback(keyboard_event_callback callback);
 
 #endif /* KEYBOARD_H_ */

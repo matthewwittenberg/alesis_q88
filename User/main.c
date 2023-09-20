@@ -15,6 +15,8 @@
 #include "main_app.h"
 #include "input.h"
 #include "analog.h"
+#include "keypad.h"
+#include "led.h"
 
 
 void SYS_Init(void)
@@ -80,6 +82,8 @@ int main()
     keyboard_init();
     input_init();
     analog_init();
+    keypad_init();
+    led_init();
 
     // never return...
     main_app();

@@ -174,7 +174,6 @@ typedef struct
 } KEYBOARD_KEY_STATUS_T;
 
 static KEYBOARD_KEY_STATUS_T _keyboard_status[KEYBOARD_TOTAL_KEYS];
-static uint8_t _keyboard_start_note = KEYBOARD_START_NOTE;
 volatile uint32_t _velocity_tick = 0;
 static keyboard_event_callback _keyboard_callback = NULL;
 
@@ -274,7 +273,7 @@ void scan_keys(uint32_t detect_port, uint32_t detect_pin, uint32_t press_port, u
 					int32_t velocity = KEYBOARD_VELOCITY_RATE_MS - (_velocity_tick - _keyboard_status[key_index].detect_tick);
 					if(velocity > 127)
 						velocity = 127;
-					_keyboard_callback(KEYBOARD_EVENT_PRESS, key_index + _keyboard_start_note, velocity);
+					_keyboard_callback(KEYBOARD_EVENT_PRESS, key_index, velocity);
 				}
 			}
 		}
@@ -284,7 +283,7 @@ void scan_keys(uint32_t detect_port, uint32_t detect_pin, uint32_t press_port, u
 			{
 				// signal release
 				//MIDI_DEVICE.note_on(key_index + _keyboard_start_note, KEYBOARD_CHANNEL, 0);
-				_keyboard_callback(KEYBOARD_EVENT_RELEASE, key_index + _keyboard_start_note, 0);
+				_keyboard_callback(KEYBOARD_EVENT_RELEASE, key_index, 0);
 			}
 
 			_keyboard_status[key_index].status = KEYBOARD_KEY_RELEASE;
@@ -314,16 +313,6 @@ void keyboard_task()
 	scan_keys(KEYBOARD_DETECT_GROUP9_PORT_VAL, KEYBOARD_DETECT_GROUP9_PIN, KEYBOARD_PRESS_GROUP9_PORT_VAL, KEYBOARD_PRESS_GROUP9_PIN, 9);
 	scan_keys(KEYBOARD_DETECT_GROUP10_PORT_VAL, KEYBOARD_DETECT_GROUP10_PIN, KEYBOARD_PRESS_GROUP10_PORT_VAL, KEYBOARD_PRESS_GROUP10_PIN, 10);
 	scan_keys(KEYBOARD_DETECT_GROUP11_PORT_VAL, KEYBOARD_DETECT_GROUP11_PIN, KEYBOARD_PRESS_GROUP11_PORT_VAL, KEYBOARD_PRESS_GROUP11_PIN, 11);
-}
-
-uint8_t keyboard_get_start_note()
-{
-    return _keyboard_start_note;
-}
-
-void keyboard_set_start_note(uint8_t note)
-{
-    _keyboard_start_note = note;
 }
 
 void keyboard_register_callback(keyboard_event_callback callback)

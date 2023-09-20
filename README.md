@@ -54,7 +54,7 @@ To the best of my knowledge, here is the map of microcontroller pins
 |26|PC.2| keyboard press group 2 |
 |27|PC.1| keyboard detect group 1 |
 |28|PC.0| keyboard press group 1 |
-|29|PE.5|             |
+|29|PE.5| led octave up a |
 |30|PB.11| keyboard key 4 |
 |31|PB.10| keyboard key 3 |
 |32|PB.9| keyboard key 2 |
@@ -73,10 +73,10 @@ To the best of my knowledge, here is the map of microcontroller pins
 |45|PA.1| pitch |
 |46|PA.2| modulation |
 |47|PA.3| expression pedal |
-|48|PA.4|                    |
-|49|PA.5|                   |
-|50|PA.6|                   |
-|51|PA.7|                   |
+|48|PA.4| led advanced |
+|49|PA.5| led octave up b |
+|50|PA.6| led octave down a |
+|51|PA.7| led octave down b |
 |52|AVDD|                  |
 |53|PC.7| keyboard detect group 3 |
 |54|PC.6| keyboard press group 3 |

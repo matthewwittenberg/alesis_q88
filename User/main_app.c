@@ -12,6 +12,8 @@
 #include "input.h"
 #include "sys_timer.h"
 #include "analog.h"
+#include "keypad.h"
+#include "led.h"
 
 #define DEFAULT_CHANNEL 0
 #define ANALOG_SAMPLE_RATE_MS 25
@@ -26,6 +28,7 @@ typedef struct
 	int16_t pitch_last;
 	int16_t volume_last;
 	int16_t expression_last;
+	bool in_advanced;
 } APP_STATE_T;
 
 APP_STATE_T _state = {
@@ -35,7 +38,13 @@ APP_STATE_T _state = {
 	.pitch_last = 30000,
 	.volume_last = 30000,
 	.expression_last = 30000,
+	.in_advanced = false,
 };
+
+void keypad_event_handler(KEYPAD_EVENT_T event, KEYPAD_KEY_T key)
+{
+
+}
 
 void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t velocity)
 {
@@ -124,6 +133,13 @@ void monitor_analog()
 void main_app()
 {
 	keyboard_register_callback(keyboard_event_handler);
+	keypad_register_callback(keypad_event_handler);
+
+	//led_set(LED_TYPE_ADVANCED, true);
+	//led_set(LED_TYPE_OCTAVE_UP_A, true);
+	//led_set(LED_TYPE_OCTAVE_UP_B, true);
+	//led_set(LED_TYPE_OCTAVE_DOWN_A, true);
+	//led_set(LED_TYPE_OCTAVE_DOWN_B, true);
 
 	// can you say "super loop"?
 	while(1)
@@ -132,5 +148,6 @@ void main_app()
 		MIDI_DEVICE.task();
 		monitor_input();
 		monitor_analog();
+		keypad_task();
 	}
 }
