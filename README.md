@@ -38,7 +38,7 @@ To the best of my knowledge, here is the map of microcontroller pins
 |10|PB.4|         |
 |11|PB.5|              |
 |12|PB.6|              |
-|13|PB.7|           |
+|13|PB.7| sustain pedal |
 |14|LDO|                  |
 |15|VDD| 3.3VDC |
 |16|VSS| GND |
@@ -72,7 +72,7 @@ To the best of my knowledge, here is the map of microcontroller pins
 |44|PA.0|                        |
 |45|PA.1|     |
 |46|PA.2|   |
-|47|PA.3|                    |
+|47|PA.3| expression pedal |
 |48|PA.4|                    |
 |49|PA.5|                   |
 |50|PA.6|                   |

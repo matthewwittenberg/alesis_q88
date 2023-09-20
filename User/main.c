@@ -13,6 +13,7 @@
 #include "midi_device.h"
 #include "sys_timer.h"
 #include "main_app.h"
+#include "input.h"
 
 
 void SYS_Init(void)
@@ -76,6 +77,7 @@ int main()
     NVIC_EnableIRQ(USBD_IRQn);
 
     keyboard_init();
+    input_init();
 
     // never return...
     main_app();
