@@ -238,12 +238,19 @@ void monitor_analog()
 		{
 			MIDI_DEVICE.pitch_wheel(_state.channel, (pitch - 2048) * 4);
 			last_pitch_normal = false;
+
+			if(pitch < (ANALOG_PITCH_MIDDLE - ANALOG_RANGE))
+				led_set(LED_TYPE_OCTAVE_UP_A, true);
+			else
+				led_set(LED_TYPE_OCTAVE_DOWN_A, true);
 		}
 		else
 		{
 			if(last_pitch_normal == false)
 			{
 				MIDI_DEVICE.pitch_wheel(_state.channel, 0);
+				led_set(LED_TYPE_OCTAVE_DOWN_A, false);
+				led_set(LED_TYPE_OCTAVE_UP_A, false);
 			}
 
 			last_pitch_normal = true;
@@ -266,6 +273,15 @@ void main_app()
 {
 	keyboard_register_callback(keyboard_event_handler);
 	keypad_register_callback(keypad_event_handler);
+
+	// blink 3 times
+	for(uint32_t i=0; i<3; i++)
+	{
+		led_set(LED_TYPE_ADVANCED, true);
+		wait_ms(100);
+		led_set(LED_TYPE_ADVANCED, false);
+		wait_ms(100);
+	}
 
 	// can you say "super loop"?
 	while(1)
