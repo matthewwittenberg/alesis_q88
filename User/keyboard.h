@@ -14,11 +14,19 @@
 #define KEYBOARD_TOTAL_KEYS 88
 #define KEYBOARD_NOTES_PER_OCTAVE 12
 #define KEYBOARD_START_NOTE 21
-#define KEYBOARD_CHANNEL 0
+
+typedef enum
+{
+	KEYBOARD_EVENT_PRESS,
+	KEYBOARD_EVENT_RELEASE,
+} KEYBOARD_EVENT_T;
+
+typedef void (*keyboard_event_callback)(KEYBOARD_EVENT_T event, uint8_t note, int16_t velocity);
 
 void keyboard_init();
 void keyboard_task();
 uint8_t keyboard_get_start_note();
 void keyboard_set_start_note(uint8_t note);
+void keyboard_register_callback(keyboard_event_callback callback);
 
 #endif /* KEYBOARD_H_ */

@@ -12,6 +12,7 @@
 #include "keyboard.h"
 #include "midi_device.h"
 #include "sys_timer.h"
+#include "main_app.h"
 
 
 void SYS_Init(void)
@@ -76,15 +77,18 @@ int main()
 
     keyboard_init();
 
-    do
-    {
-    	keyboard_task();
-    	MIDI_DEVICE.task();
-//        printf("Input: ");
-//        ch = getchar();
-//        printf("%c\n", ch);
-    }
-    while(1);
+    // never return...
+    main_app();
+
+//    do
+//    {
+//    	keyboard_task();
+//    	MIDI_DEVICE.task();
+////        printf("Input: ");
+////        ch = getchar();
+////        printf("%c\n", ch);
+//    }
+//    while(1);
 }
 
 /*** (C) COPYRIGHT 2014 Nuvoton Technology Corp. ***/

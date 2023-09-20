@@ -7,10 +7,14 @@
 
 #include "keyboard.h"
 #include "NUC100Series.h"
-#include "midi_device.h"
+#include <string.h>
 
 #define KEYBOARD_KEY_COUNT 8
 #define KEYBOARD_DELAY_LOOP_COUNT 10
+#define DELAY() delay = KEYBOARD_DELAY_LOOP_COUNT; while(--delay){}
+#define KEYBOARD_TIMER TIMER1
+#define KEYBOARD_TIMER_MODULE TMR1_MODULE
+#define KEYBOARD_VELOCITY_RATE_MS 128
 
 // KEY DEFINITIONS
 
@@ -171,6 +175,14 @@ typedef struct
 
 static KEYBOARD_KEY_STATUS_T _keyboard_status[KEYBOARD_TOTAL_KEYS];
 static uint8_t _keyboard_start_note = KEYBOARD_START_NOTE;
+volatile uint32_t _velocity_tick = 0;
+static keyboard_event_callback _keyboard_callback = NULL;
+
+void TMR1_IRQHandler(void)
+{
+	TIMER_ClearIntFlag(KEYBOARD_TIMER);
+	++_velocity_tick;
+}
 
 void keyboard_init()
 {
@@ -217,9 +229,18 @@ void keyboard_init()
 	GPIO_SetMode(KEYBOARD_PRESS_GROUP10_PORT, 1 << KEYBOARD_PRESS_GROUP10_PIN, GPIO_PMD_INPUT);
 	GPIO_SetMode(KEYBOARD_DETECT_GROUP11_PORT, 1 << KEYBOARD_DETECT_GROUP11_PIN, GPIO_PMD_INPUT);
 	GPIO_SetMode(KEYBOARD_PRESS_GROUP11_PORT, 1 << KEYBOARD_PRESS_GROUP11_PIN, GPIO_PMD_INPUT);
-}
 
-#define DELAY() delay = KEYBOARD_DELAY_LOOP_COUNT; while(--delay){}
+	memset(_keyboard_status, 0, sizeof(_keyboard_status));
+
+	// setup velocity timer
+	CLK_EnableModuleClock(KEYBOARD_TIMER_MODULE);
+	CLK_SetModuleClock(KEYBOARD_TIMER_MODULE, CLK_CLKSEL1_TMR1_S_HIRC, 0);
+
+	TIMER_Open(KEYBOARD_TIMER, TIMER_PERIODIC_MODE, KEYBOARD_VELOCITY_RATE_MS);
+	TIMER_EnableInt(KEYBOARD_TIMER);
+	NVIC_EnableIRQ(TMR1_IRQn);
+	TIMER_Start(KEYBOARD_TIMER);
+}
 
 void scan_keys(uint32_t detect_port, uint32_t detect_pin, uint32_t press_port, uint32_t press_pin, uint32_t group)
 {
@@ -242,16 +263,18 @@ void scan_keys(uint32_t detect_port, uint32_t detect_pin, uint32_t press_port, u
 			if(_keyboard_status[key_index].status == KEYBOARD_KEY_RELEASE)
 			{
 				_keyboard_status[key_index].status = KEYBOARD_KEY_DETECT;
-				// note the time
+				_keyboard_status[key_index].detect_tick = _velocity_tick;
 			}
 			else if(_keyboard_status[key_index].status == KEYBOARD_KEY_DETECT)
 			{
 				if(GPIO_PIN_DATA(press_port, press_pin))
 				{
 					_keyboard_status[key_index].status = KEYBOARD_KEY_PRESS;
-					// note the delta time and signal press
 
-					MIDI_DEVICE.note_on(key_index + _keyboard_start_note, 0, 127);
+					int32_t velocity = KEYBOARD_VELOCITY_RATE_MS - (_velocity_tick - _keyboard_status[key_index].detect_tick);
+					if(velocity > 127)
+						velocity = 127;
+					_keyboard_callback(KEYBOARD_EVENT_PRESS, key_index + _keyboard_start_note, velocity);
 				}
 			}
 		}
@@ -260,7 +283,8 @@ void scan_keys(uint32_t detect_port, uint32_t detect_pin, uint32_t press_port, u
 			if(_keyboard_status[key_index].status == KEYBOARD_KEY_PRESS)
 			{
 				// signal release
-				MIDI_DEVICE.note_on(key_index + _keyboard_start_note, 0, 0);
+				//MIDI_DEVICE.note_on(key_index + _keyboard_start_note, KEYBOARD_CHANNEL, 0);
+				_keyboard_callback(KEYBOARD_EVENT_RELEASE, key_index + _keyboard_start_note, 0);
 			}
 
 			_keyboard_status[key_index].status = KEYBOARD_KEY_RELEASE;
@@ -300,4 +324,9 @@ uint8_t keyboard_get_start_note()
 void keyboard_set_start_note(uint8_t note)
 {
     _keyboard_start_note = note;
+}
+
+void keyboard_register_callback(keyboard_event_callback callback)
+{
+	_keyboard_callback = callback;
 }
