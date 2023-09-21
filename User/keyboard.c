@@ -14,7 +14,7 @@
 #define KEYBOARD_DELAY() delay = KEYBOARD_DELAY_LOOP_COUNT; while(--delay){}
 #define KEYBOARD_TIMER TIMER1
 #define KEYBOARD_TIMER_MODULE TMR1_MODULE
-#define KEYBOARD_VELOCITY_RATE_MS 10000
+#define KEYBOARD_VELOCITY_RATE_MS 60000
 
 // KEY DEFINITIONS
 
@@ -159,6 +159,25 @@
 #define KEYBOARD_PRESS_GROUP11_PORT_VAL 0
 #define KEYBOARD_PRESS_GROUP11_PIN 14
 
+// built table in excel with formula: =EXP(A1*0.03815)
+// response is decent compared to linear
+uint8_t VELOCITY_LOOKUP_TABLE[127] =
+{
+	1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+	1,  1,  1,  1,  1,  1,  1,  1,  2,  2,
+	2,  2,  2,  2,  2,  2,  2,  2,  3,  3,
+	3,  3,  3,  3,  3,  3,  4,  4,  4,  4,
+	4,  4,  5,  5,  5,  5,  6,  6,  6,  6,
+	6,  7,  7,  7,  8,  8,  8,  9,  9,  9,
+	10, 10, 11, 11, 11, 12, 12, 13, 13, 14,
+	15, 15, 16, 16, 17, 18, 18, 19, 20, 21,
+	21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+	32, 33, 34, 36, 37, 38, 40, 42, 43, 45,
+	47, 48, 50, 52, 54, 57, 59, 61, 63, 66,
+	69, 71, 74, 77, 80, 83, 86, 90, 93, 97,
+	101,105,109,113,117,122,127,
+};
+
 typedef enum
 {
 	KEYBOARD_KEY_RELEASE,
@@ -269,15 +288,18 @@ void keyboard_scan_keys(uint32_t detect_port, uint32_t detect_pin, uint32_t pres
 
 					int32_t velocity = _velocity_tick - _keyboard_status[key_index].detect_tick;
 
-					// a count of 4000 is about the slowest you can press on a regular piano.
-					// 127 divides into 4000 about 31 times (get into 0-127 range for midi 1.0)
-					velocity /= 20;
-					velocity = 127 - velocity;
+					// a count of 15000 is about the slowest you can press on a regular piano to get a sound.
+					// 127 divides into 15000 about 120 times (get into 0-127 range for midi 1.0)
+					velocity /= 120;
+					velocity = 126 - velocity;
 
-					if(velocity > 127)
-						velocity = 127;
+					if(velocity > 126)
+						velocity = 126;
 					if(velocity < 0)
 						velocity = 0;
+
+					// translate from linear response to...
+					velocity = VELOCITY_LOOKUP_TABLE[velocity];
 
 					// signal press
 					_keyboard_callback(KEYBOARD_EVENT_PRESS, KEYBOARD_START_NOTE + key_index, velocity);
