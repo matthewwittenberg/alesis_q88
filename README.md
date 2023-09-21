@@ -1,7 +1,7 @@
 # Alesis Q88
 Reverse Engineer Project
 ## About
-Project to reverse engineer a full 888 key MIDI controller and ultimately make MIDI 2.0 compatible. Chose the [Alesis Q88](https://www.alesis.com/products/view/q88) as it is relatively cheap for a full keyboard.
+Project to reverse engineer a full 88 key MIDI controller and ultimately make MIDI 2.0 compatible. Chose the [Alesis Q88](https://www.alesis.com/products/view/q88) as it is relatively cheap for a full keyboard.
 ## Tools
 (only built on Windows thus far)
 1. [NuEclipse](https://www.nuvoton.com/tool-and-software/ide-and-compiler/)
