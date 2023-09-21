@@ -14,7 +14,7 @@
 #define KEYBOARD_DELAY() delay = KEYBOARD_DELAY_LOOP_COUNT; while(--delay){}
 #define KEYBOARD_TIMER TIMER1
 #define KEYBOARD_TIMER_MODULE TMR1_MODULE
-#define KEYBOARD_VELOCITY_RATE_MS 128
+#define KEYBOARD_VELOCITY_RATE_MS 10000
 
 // KEY DEFINITIONS
 
@@ -267,9 +267,17 @@ void keyboard_scan_keys(uint32_t detect_port, uint32_t detect_pin, uint32_t pres
 				{
 					_keyboard_status[key_index].status = KEYBOARD_KEY_PRESS;
 
-					int32_t velocity = KEYBOARD_VELOCITY_RATE_MS - (_velocity_tick - _keyboard_status[key_index].detect_tick);
+					int32_t velocity = _velocity_tick - _keyboard_status[key_index].detect_tick;
+
+					// a count of 4000 is about the slowest you can press on a regular piano.
+					// 127 divides into 4000 about 31 times (get into 0-127 range for midi 1.0)
+					velocity /= 20;
+					velocity = 127 - velocity;
+
 					if(velocity > 127)
 						velocity = 127;
+					if(velocity < 0)
+						velocity = 0;
 
 					// signal press
 					_keyboard_callback(KEYBOARD_EVENT_PRESS, KEYBOARD_START_NOTE + key_index, velocity);
