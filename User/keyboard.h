@@ -14,6 +14,8 @@
 #define KEYBOARD_TOTAL_KEYS 88
 #define KEYBOARD_NOTES_PER_OCTAVE 12
 #define KEYBOARD_START_NOTE 21
+// a count of 15000 is about the slowest you can press on a regular piano to get a sound.
+#define KEYBOARD_SLOWEST_VELOCITY 15000
 
 typedef enum
 {

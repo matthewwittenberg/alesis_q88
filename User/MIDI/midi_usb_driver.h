@@ -11,8 +11,8 @@
 /* Define EP maximum packet size */
 #define EP0_MAX_PKT_SIZE    8
 #define EP1_MAX_PKT_SIZE    EP0_MAX_PKT_SIZE
-#define EP2_MAX_PKT_SIZE    16
-#define EP3_MAX_PKT_SIZE    16
+#define EP2_MAX_PKT_SIZE    64
+#define EP3_MAX_PKT_SIZE    64
 
 #define SETUP_BUF_BASE  0
 #define SETUP_BUF_LEN   8
@@ -26,8 +26,8 @@
 #define EP3_BUF_LEN     EP3_MAX_PKT_SIZE
 
 /* endpoints */
-#define USBD_MIDI10_EP_IN_ADDR 0x01
-#define USBD_MIDI10_EP_OUT_ADDR 0x02
+#define USBD_MIDI_EP_IN_ADDR 0x01
+#define USBD_MIDI_EP_OUT_ADDR 0x02
 
 /* Define Descriptor information */
 #define HID_DEFAULT_INT_IN_INTERVAL     20
@@ -40,9 +40,11 @@
 /*-------------------------------------------------------------*/
 
 /*-------------------------------------------------------------*/
-void midi_1_0_driver_init(void);
-void midi_1_0_driver_tx(uint32_t message);
-void midi_1_0_driver_task(void);
+void midi_usb_driver_init();
+void midi_usb_driver_tx(uint8_t *pmessage, uint32_t length);
+uint32_t midi_usb_driver_rx(uint8_t *pmessage, uint32_t length);
+void midi_usb_flush_rx();
+void midi_usb_driver_task();
 
 extern uint8_t volatile g_u8Suspend;
 

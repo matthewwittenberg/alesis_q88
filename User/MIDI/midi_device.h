@@ -20,12 +20,14 @@ typedef struct
     void (*volume)(uint8_t channel, uint16_t volume);
     void (*sense)();
     void (*sustain)(uint8_t channel, bool on);
+    void (*program_change)(uint8_t channel, uint8_t program);
     void (*task)();
     MIDI_VERSION_T version;
-} USBD_MIDI_DEVICE_T;
+} MIDI_DEVICE_T;
 
 void midi_device_init();
 
-extern USBD_MIDI_DEVICE_T MIDI_DEVICE;
+extern MIDI_DEVICE_T MIDI_USB_DEVICE;
+extern MIDI_DEVICE_T MIDI_SERIAL_DEVICE;
 
 #endif

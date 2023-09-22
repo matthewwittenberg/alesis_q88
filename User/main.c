@@ -53,11 +53,7 @@ int main()
 
     sys_timer_init();
 
-    USBD_Open(&gsInfo, NULL, NULL);
     midi_device_init();
-    USBD_Start();
-    NVIC_EnableIRQ(USBD_IRQn);
-
     keyboard_init();
     input_init();
     analog_init();

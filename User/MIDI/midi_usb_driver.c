@@ -1,16 +1,19 @@
-/******************************************************************************
- * @file     hid_mouse.c
- * @brief    NUC100 series USBD HID mouse sample file
- *
- * @note
- * Copyright (C) 2013 Nuvoton Technology Corp. All rights reserved.
- ******************************************************************************/
-
-/*!<Includes */
-#include <midi_1_0_driver.h>
+#include "midi_usb_driver.h"
 #include <string.h>
+#include <stdbool.h>
 #include "NUC100Series.h"
 #include "usbd.h"
+
+#define MIDI_TX_QUEUE_DEPTH 512
+#define MIDI_RX_QUEUE_DEPTH 512
+
+uint8_t _midi_tx_queue[MIDI_TX_QUEUE_DEPTH];
+uint32_t _midi_tx_queue_head = 0;
+uint32_t _midi_tx_queue_tail = 0;
+
+uint8_t _midi_rx_queue[MIDI_RX_QUEUE_DEPTH];
+uint32_t _midi_rx_queue_head = 0;
+uint32_t _midi_rx_queue_tail = 0;
 
 uint8_t volatile g_u8EP2Ready = 0;
 uint8_t volatile g_u8Suspend = 0;
@@ -18,6 +21,7 @@ uint8_t g_u8Idle = 0;
 uint8_t g_u8Protocol = 0;
 
 void EP2_Handler(void);
+void EP3_Handler(void);
 
 void USBD_IRQHandler(void)
 {
@@ -125,6 +129,8 @@ void USBD_IRQHandler(void)
         {
             /* Clear event flag */
             USBD_CLR_INT_FLAG(USBD_INTSTS_EP3);
+
+            EP3_Handler();
         }
 
         if(u32IntSts & USBD_INTSTS_EP4)
@@ -141,9 +147,81 @@ void USBD_IRQHandler(void)
     }
 }
 
-void EP2_Handler(void)  /* Interrupt IN handler */
+// in handler
+void EP2_Handler(void)
 {
     g_u8EP2Ready = 1;
+}
+
+// out handler
+void EP3_Handler(void)
+{
+	uint8_t *pdata = (uint8_t*)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP3));
+	uint32_t length = USBD_GET_PAYLOAD_LEN(EP3);
+
+	for(uint32_t i=0; i<length; i++)
+	{
+		_midi_rx_queue[_midi_rx_queue_head] = pdata[i];
+		_midi_rx_queue_head++;
+		if(_midi_rx_queue_head >= MIDI_RX_QUEUE_DEPTH)
+			_midi_rx_queue_head = 0;
+	}
+
+	USBD_SET_PAYLOAD_LEN(EP3, EP3_MAX_PKT_SIZE);
+}
+
+#pragma pack(push, 1)
+typedef struct
+{
+	uint8_t   bmRequest;
+	uint8_t   bRequest;
+	uint16_t  wValue;
+	uint16_t  wIndex;
+	uint16_t  wLength;
+} USBD_SETUP_PACKET_T;
+#pragma pack(pop)
+
+extern const uint8_t USBD_MIDI20_TERM_BLOCK_DESC[18];
+
+void midi_usb_class_request()
+{
+	USBD_SETUP_PACKET_T setup;
+	bool handled = false;
+
+	USBD_GetSetupPacket((uint8_t*)&setup);
+
+	switch (setup.bmRequest & (REQ_CLASS | REQ_VENDOR))
+	{
+		case REQ_CLASS:
+			break;
+
+		case REQ_VENDOR:
+			break;
+
+		case REQ_STANDARD:
+			if(setup.bRequest == GET_DESCRIPTOR)
+			{
+#if MIDI_VERSION == 2
+				if(setup.wValue == 0x2601)
+				{
+					USBD_PrepareCtrlIn(USBD_MIDI20_TERM_BLOCK_DESC, sizeof(USBD_MIDI20_TERM_BLOCK_DESC));
+					USBD_PrepareCtrlOut(0, 0);
+					handled = true;
+				}
+#endif
+			}
+
+			break;
+
+		default:
+			break;
+	}
+
+	if(handled == false)
+	{
+		USBD_SetStall(EP0);
+		USBD_SetStall(EP1);
+	}
 }
 
 
@@ -153,8 +231,12 @@ void EP2_Handler(void)  /* Interrupt IN handler */
   * @param  None.
   * @retval None.
   */
-void midi_1_0_driver_init(void)
+void midi_usb_driver_init(void)
 {
+	USBD_Open(&gsInfo, midi_usb_class_request, NULL);
+	USBD_Start();
+	NVIC_EnableIRQ(USBD_IRQn);
+
     /* Init setup packet buffer */
     /* Buffer range for setup packet -> [0 ~ 0x7] */
     USBD->STBUFSEG = SETUP_BUF_BASE;
@@ -172,12 +254,12 @@ void midi_1_0_driver_init(void)
 
     /*****************************************************/
     /* EP2 ==> Interrupt IN endpoint, address 1 */
-    USBD_CONFIG_EP(EP2, USBD_CFG_EPMODE_IN | USBD_MIDI10_EP_IN_ADDR);
+    USBD_CONFIG_EP(EP2, USBD_CFG_EPMODE_IN | USBD_MIDI_EP_IN_ADDR);
     /* Buffer range for EP2 */
     USBD_SET_EP_BUF_ADDR(EP2, EP2_BUF_BASE);
 
     /* EP3 ==> Interrupt OUT endpoint, address 2 */
-	USBD_CONFIG_EP(EP3, USBD_CFG_EPMODE_OUT | USBD_MIDI10_EP_OUT_ADDR);
+	USBD_CONFIG_EP(EP3, USBD_CFG_EPMODE_OUT | USBD_MIDI_EP_OUT_ADDR);
 	/* Buffer range for EP3 */
 	USBD_SET_EP_BUF_ADDR(EP3, EP3_BUF_BASE);
 	/* trigger to receive OUT data */
@@ -187,128 +269,71 @@ void midi_1_0_driver_init(void)
     g_u8EP2Ready = 1;
 }
 
-//void midi_1_0_class_request(void)
-//{
-//    uint8_t buf[8];
-//
-//    USBD_GetSetupPacket(buf);
-//
-//    if(buf[0] & 0x80)    /* request data transfer direction */
-//    {
-////        // Device to host
-////        switch(buf[1])
-////        {
-////            case GET_REPORT:
-//////            {
-//////                break;
-//////            }
-////            case GET_IDLE:
-////            {
-////                USBD_SET_PAYLOAD_LEN(EP1, buf[6]);
-////                /* Data stage */
-////                USBD_PrepareCtrlIn(&g_u8Idle, buf[6]);
-////                /* Status stage */
-////                USBD_PrepareCtrlOut(0, 0);
-////                break;
-////            }
-////            case GET_PROTOCOL:
-////            {
-////                USBD_SET_PAYLOAD_LEN(EP1, buf[6]);
-////                /* Data stage */
-////                USBD_PrepareCtrlIn(&g_u8Protocol, buf[6]);
-////                /* Status stage */
-////                USBD_PrepareCtrlOut(0, 0);
-////                break;
-////            }
-////            default:
-////            {
-//                /* Setup error, stall the device */
-//                USBD_SetStall(EP0);
-//                USBD_SetStall(EP1);
-////                break;
-////            }
-////        }
-//    }
-//    else
-//    {
-//        // Host to device
-////        switch(buf[1])
-////        {
-////            case SET_REPORT:
-////            {
-////                if(buf[3] == 3)
-////                {
-////                    /* Request Type = Feature */
-////                    USBD_SET_DATA1(EP1);
-////                    USBD_SET_PAYLOAD_LEN(EP1, 0);
-////                }
-////                break;
-////            }
-////            case SET_IDLE:
-////            {
-////                g_u8Idle = buf[3];
-////                /* Status stage */
-////                USBD_SET_DATA1(EP0);
-////                USBD_SET_PAYLOAD_LEN(EP0, 0);
-////                break;
-////            }
-////            case SET_PROTOCOL:
-////            {
-////                g_u8Protocol = buf[2];
-////                /* Status stage */
-////                USBD_SET_DATA1(EP0);
-////                USBD_SET_PAYLOAD_LEN(EP0, 0);
-////                break;
-////            }
-////            default:
-////            {
-//                // Stall
-//                /* Setup error, stall the device */
-//                USBD_SetStall(EP0);
-//                USBD_SetStall(EP1);
-////                break;
-////            }
-////        }
-//    }
-//}
-
-#define MIDI_1_0_TX_QUEUE_DEPTH 10
-
-uint32_t _midi_1_0_tx_queue[MIDI_1_0_TX_QUEUE_DEPTH];
-uint32_t _midi_1_0_tx_queue_head = 0;
-uint32_t _midi_1_0_tx_queue_tail = 0;
-
-void midi_1_0_driver_tx(uint32_t message)
+void midi_usb_driver_tx(uint8_t *pmessage, uint32_t length)
 {
-	_midi_1_0_tx_queue[_midi_1_0_tx_queue_head] = message;
-	_midi_1_0_tx_queue_head++;
-	if(_midi_1_0_tx_queue_head >= MIDI_1_0_TX_QUEUE_DEPTH)
-		_midi_1_0_tx_queue_head = 0;
+	uint32_t head = _midi_tx_queue_head;
+
+	for(uint32_t i=0; i<length; i++)
+	{
+		_midi_tx_queue[head] = pmessage[i];
+		head++;
+		if(head >= MIDI_TX_QUEUE_DEPTH)
+			head = 0;
+	}
+
+	_midi_tx_queue_head = head;
 }
 
-void midi_1_0_driver_task()
+uint32_t midi_usb_driver_rx(uint8_t *pmessage, uint32_t length)
+{
+	uint32_t bytes_read = 0;
+
+	while(_midi_rx_queue_tail != _midi_rx_queue_head)
+	{
+		pmessage[bytes_read++] = _midi_rx_queue[_midi_rx_queue_tail];
+		_midi_rx_queue_tail++;
+		if(_midi_rx_queue_tail >= MIDI_RX_QUEUE_DEPTH)
+			_midi_rx_queue_tail = 0;
+
+		if(bytes_read >= length)
+			break;
+	}
+
+	return bytes_read;
+}
+
+void midi_usb_driver_task()
 {
     uint8_t *buf;
 
     if(g_u8EP2Ready)
     {
-    	if(_midi_1_0_tx_queue_tail != _midi_1_0_tx_queue_head)
+    	if(_midi_tx_queue_tail != _midi_tx_queue_head)
     	{
+    		uint32_t index = 0;
     		buf = (uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP2));
 
-    		uint32_t message = _midi_1_0_tx_queue[_midi_1_0_tx_queue_tail];
-    		_midi_1_0_tx_queue_tail++;
-    		if(_midi_1_0_tx_queue_tail >= MIDI_1_0_TX_QUEUE_DEPTH)
-    			_midi_1_0_tx_queue_tail = 0;
+    		while(_midi_tx_queue_tail != _midi_tx_queue_head)
+			{
+    			buf[index++] = _midi_tx_queue[_midi_tx_queue_tail];
+    			_midi_tx_queue_tail++;
+				if(_midi_tx_queue_tail >= MIDI_TX_QUEUE_DEPTH)
+					_midi_tx_queue_tail = 0;
 
-    		memcpy(buf, &message, 4);
+				if(index >= EP2_MAX_PKT_SIZE)
+					break;
+			}
 
     		g_u8EP2Ready = 0;
 
     		/* Set transfer length and trigger IN transfer */
-    		USBD_SET_PAYLOAD_LEN(EP2, 4);
+    		USBD_SET_PAYLOAD_LEN(EP2, index);
     	}
     }
 }
 
-
+void midi_usb_flush_rx()
+{
+	_midi_rx_queue_head = 0;
+	_midi_rx_queue_tail = 0;
+}

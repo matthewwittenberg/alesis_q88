@@ -293,10 +293,17 @@ void USBD_GetDescriptor(void)
             }
         }
         default:
-            // Not support. Reply STALL.
-            USBD_SET_EP_STALL(EP0);
-            USBD_SET_EP_STALL(EP1);
-            DBG_PRINTF("Unsupported get desc type. stall ctrl pipe\n");
+        	if(g_usbd_pfnClassRequest)
+			{
+				g_usbd_pfnClassRequest();
+			}
+			else
+			{
+				// Not support. Reply STALL.
+				USBD_SET_EP_STALL(EP0);
+				USBD_SET_EP_STALL(EP1);
+				DBG_PRINTF("Unsupported get desc type. stall ctrl pipe\n");
+        	}
             break;
     }
 }
@@ -390,10 +397,17 @@ void USBD_StandardRequest(void)
             }
             default:
             {
-                /* Setup error, stall the device */
-                USBD_SET_EP_STALL(EP0);
-                USBD_SET_EP_STALL(EP1);
-                DBG_PRINTF("Unknown request. stall ctrl pipe.\n");
+            	if(g_usbd_pfnClassRequest)
+            	{
+            		g_usbd_pfnClassRequest();
+            	}
+            	else
+            	{
+            		/* Setup error, stall the device */
+            		USBD_SET_EP_STALL(EP0);
+            		USBD_SET_EP_STALL(EP1);
+            		DBG_PRINTF("Unknown request. stall ctrl pipe.\n");
+            	}
                 break;
             }
         }
@@ -484,11 +498,18 @@ void USBD_StandardRequest(void)
             }
             default:
             {
-                /* Setup error, stall the device */
-                USBD_SET_EP_STALL(EP0);
-                USBD_SET_EP_STALL(EP1);
-                DBG_PRINTF("Unsupported request. stall ctrl pipe.\n");
-                break;
+            	if(g_usbd_pfnClassRequest)
+				{
+					g_usbd_pfnClassRequest();
+				}
+				else
+				{
+					/* Setup error, stall the device */
+					USBD_SET_EP_STALL(EP0);
+					USBD_SET_EP_STALL(EP1);
+					DBG_PRINTF("Unknown request. stall ctrl pipe.\n");
+				}
+				break;
             }
         }
     }

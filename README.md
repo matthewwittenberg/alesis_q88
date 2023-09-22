@@ -27,17 +27,18 @@ Project to reverse engineer a full 88 key MIDI controller and ultimately make MI
 ## Building
 1. The Alesis Q88 is built on an [NUC120RD2DN](https://www.nuvoton.com/products/microcontrollers/arm-cortex-m0-mcus/nuc120-122-123-220-usb-series/nuc120rd2dn/).
 2. Open the project in NuEclipse and build.
-3. Debugging is a little slow compared to other toold but it works so be patient between starting to debugging and hitting main().
+3. Set the desired MIDI version (MIDI_VERSION=1 or MIDI_VERSION=2) preprocessor in project settings (C/C++ Build -> Settings) -> (Cross ARM GNU C Compiler -> Preprocessor).
+3. Debugging is a little slow compared to other tools but it works, so be patient between starting a debug session and hitting main().
 ## Misc
 1. Each key on the keyboard was designed with a 2 stage micro-switch. Just barely pressing the key registers the first actuation, continuing the press motion activates the second stage. Noting the delta time between the actuations represents the key velocity (loudness). The circuit is multiplexed so we need to scan at a high rate.
+2. MIDI 2.0 implemented but not tested so far.
 ## To Do
-1. MIDI 2.0 support.
+1. Test MIDI 2.0 support.
 2. Serial MIDI support.
 3. Some of the extra advanced functions.
-4. Key response (velocity) needs work.
-5. Add commenting.
-6. Expression pedal.
-7. Directional/transport button support (buttons work but not handled).
+4. Add commenting.
+5. Expression pedal.
+6. Directional/transport button support (buttons work but not handled).
 ## Code
 1. keyboard.c owns the keyboard task, it scans and processes key presses.
 2. Went with a super loop instead of an OS due to processor resource constraints.

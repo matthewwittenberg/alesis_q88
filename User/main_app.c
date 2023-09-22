@@ -14,13 +14,18 @@
 #include "analog.h"
 #include "keypad.h"
 #include "led.h"
+#include <string.h>
+#include <stdlib.h>
 
 #define DEFAULT_CHANNEL 0
 #define ANALOG_SAMPLE_RATE_MS 25
 #define ANALOG_RANGE 30
 #define ANALOG_PITCH_MIDDLE 2090
 #define ADVANCED_STATE_LED_BLINK_MS 500
+#define MIDI_1_0_VELOCITY_DIVIDER (KEYBOARD_SLOWEST_VELOCITY / 127)
+#define MIDI_2_0_VELOCITY_MULTIPLIER (65536 / KEYBOARD_SLOWEST_VELOCITY)
 
+#define ADVANCED_NOTE_CANCEL 24
 #define ADVANCED_NOTE_CHANNEL1 26
 #define ADVANCED_NOTE_CHANNEL2 28
 #define ADVANCED_NOTE_CHANNEL3 29
@@ -37,6 +42,19 @@
 #define ADVANCED_NOTE_CHANNEL14 48
 #define ADVANCED_NOTE_CHANNEL15 50
 #define ADVANCED_NOTE_CHANNEL16 52
+#define ADVANCED_NOTE_0 55
+#define ADVANCED_NOTE_1 57
+#define ADVANCED_NOTE_2 59
+#define ADVANCED_NOTE_3 60
+#define ADVANCED_NOTE_4 62
+#define ADVANCED_NOTE_5 64
+#define ADVANCED_NOTE_6 65
+#define ADVANCED_NOTE_7 67
+#define ADVANCED_NOTE_8 69
+#define ADVANCED_NOTE_9 71
+#define ADVANCED_NOTE_PROGRAM 72
+#define ADVANCED_NOTE_ENTER 74
+
 
 typedef struct
 {
@@ -48,6 +66,7 @@ typedef struct
 	int16_t expression_last;
 	bool in_advanced;
 	int16_t note_offset;
+	bool in_program;
 } APP_STATE_T;
 
 APP_STATE_T _state = {
@@ -59,7 +78,31 @@ APP_STATE_T _state = {
 	.expression_last = 30000,
 	.in_advanced = false,
 	.note_offset = 0,
+	.in_program = false,
 };
+
+uint32_t _number_buffer_index = 0;
+char _number_buffer[8];
+
+// built table in excel with formula: =EXP(A1*0.03815)
+// response is decent compared to linear
+uint8_t VELOCITY_LOOKUP_TABLE[127] =
+{
+	1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+	1,  1,  1,  1,  1,  1,  1,  1,  2,  2,
+	2,  2,  2,  2,  2,  2,  2,  2,  3,  3,
+	3,  3,  3,  3,  3,  3,  4,  4,  4,  4,
+	4,  4,  5,  5,  5,  5,  6,  6,  6,  6,
+	6,  7,  7,  7,  8,  8,  8,  9,  9,  9,
+	10, 10, 11, 11, 11, 12, 12, 13, 13, 14,
+	15, 15, 16, 16, 17, 18, 18, 19, 20, 21,
+	21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+	32, 33, 34, 36, 37, 38, 40, 42, 43, 45,
+	47, 48, 50, 52, 54, 57, 59, 61, 63, 66,
+	69, 71, 74, 77, 80, 83, 86, 90, 93, 97,
+	101,105,109,113,117,122,127,
+};
+
 
 void enable_advanced_mode(bool enable)
 {
@@ -71,6 +114,7 @@ void enable_advanced_mode(bool enable)
 	else
 	{
 		_state.in_advanced = false;
+		_state.in_program = false;
 		led_set(LED_TYPE_ADVANCED, false);
 	}
 }
@@ -102,12 +146,39 @@ void keypad_event_handler(KEYPAD_EVENT_T event, KEYPAD_KEY_T key)
 	}
 }
 
+void advanced_mode_append_number(char number)
+{
+	if(_state.in_program)
+	{
+		_number_buffer[_number_buffer_index++] = number;
+		if(strlen(_number_buffer) > 3)
+		{
+			enable_advanced_mode(false);
+		}
+
+		if(atoi(_number_buffer) > 127)
+		{
+			enable_advanced_mode(false);
+		}
+	}
+	else
+	{
+		enable_advanced_mode(false);
+	}
+}
+
 void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t velocity)
 {
 	if(_state.in_advanced)
 	{
+		if(event == KEYBOARD_EVENT_RELEASE)
+			return;
+
 		switch(note)
 		{
+		case ADVANCED_NOTE_CANCEL:
+			enable_advanced_mode(false);
+			break;
 		case ADVANCED_NOTE_CHANNEL1:
 			_state.channel = 0;
 			enable_advanced_mode(false);
@@ -172,6 +243,50 @@ void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t veloci
 			_state.channel = 15;
 			enable_advanced_mode(false);
 			break;
+		case ADVANCED_NOTE_0:
+			advanced_mode_append_number('0');
+			break;
+		case ADVANCED_NOTE_1:
+			advanced_mode_append_number('1');
+			break;
+		case ADVANCED_NOTE_2:
+			advanced_mode_append_number('2');
+			break;
+		case ADVANCED_NOTE_3:
+			advanced_mode_append_number('3');
+			break;
+		case ADVANCED_NOTE_4:
+			advanced_mode_append_number('4');
+			break;
+		case ADVANCED_NOTE_5:
+			advanced_mode_append_number('5');
+			break;
+		case ADVANCED_NOTE_6:
+			advanced_mode_append_number('6');
+			break;
+		case ADVANCED_NOTE_7:
+			advanced_mode_append_number('7');
+			break;
+		case ADVANCED_NOTE_8:
+			advanced_mode_append_number('8');
+			break;
+		case ADVANCED_NOTE_9:
+			advanced_mode_append_number('9');
+			break;
+		case ADVANCED_NOTE_PROGRAM:
+			_state.in_program = true;
+			_number_buffer_index = 0;
+			memset(_number_buffer, 0, sizeof(_number_buffer));
+			break;
+		case ADVANCED_NOTE_ENTER:
+			if(_state.in_program)
+			{
+				uint8_t program = atoi(_number_buffer);
+				if(program > 0)
+					MIDI_USB_DEVICE.program_change(_state.channel, program - 1);
+				enable_advanced_mode(false);
+			}
+			break;
 		default:
 			enable_advanced_mode(false);
 			break;
@@ -182,11 +297,32 @@ void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t veloci
 
 	if(event == KEYBOARD_EVENT_PRESS)
 	{
-		MIDI_DEVICE.note_on(note + _state.note_offset, _state.channel, velocity);
+		if(MIDI_USB_DEVICE.version == MIDI_VERSION_1_0)
+		{
+			// convert to 0-126
+			velocity /= MIDI_1_0_VELOCITY_DIVIDER;
+			velocity = 126 - velocity;
+
+			if(velocity > 126)
+				velocity = 126;
+			if(velocity < 0)
+				velocity = 0;
+
+			// translate from linear response to...
+			velocity = VELOCITY_LOOKUP_TABLE[velocity];
+		}
+		else
+		{
+			// linear for now
+			velocity *= MIDI_2_0_VELOCITY_MULTIPLIER;
+			velocity = 65536 - velocity;
+		}
+
+		MIDI_USB_DEVICE.note_on(note + _state.note_offset, _state.channel, velocity);
 	}
 	else if(event == KEYBOARD_EVENT_RELEASE)
 	{
-		MIDI_DEVICE.note_on(note + _state.note_offset, _state.channel, 0);
+		MIDI_USB_DEVICE.note_on(note + _state.note_offset, _state.channel, 0);
 	}
 }
 
@@ -196,7 +332,7 @@ void monitor_input()
 	{
 		if(_state.in_sustain == false)
 		{
-			MIDI_DEVICE.sustain(_state.channel, true);
+			MIDI_USB_DEVICE.sustain(_state.channel, true);
 			_state.in_sustain = true;
 		}
 	}
@@ -204,7 +340,7 @@ void monitor_input()
 	{
 		if(_state.in_sustain)
 		{
-			MIDI_DEVICE.sustain(_state.channel, false);
+			MIDI_USB_DEVICE.sustain(_state.channel, false);
 			_state.in_sustain = false;
 		}
 	}
@@ -230,13 +366,13 @@ void monitor_analog()
 		if((modulation < (_state.modulation_last - ANALOG_RANGE)) || (modulation > (_state.modulation_last + ANALOG_RANGE)))
 		{
 			_state.modulation_last = modulation;
-			MIDI_DEVICE.modulation_wheel(_state.channel, modulation * 4);
+			MIDI_USB_DEVICE.modulation_wheel(_state.channel, modulation * 4);
 		}
 
 		// monitor pitch
 		if((pitch < (ANALOG_PITCH_MIDDLE - ANALOG_RANGE)) || (pitch > (ANALOG_PITCH_MIDDLE + ANALOG_RANGE)))
 		{
-			MIDI_DEVICE.pitch_wheel(_state.channel, (pitch - 2048) * 4);
+			MIDI_USB_DEVICE.pitch_wheel(_state.channel, (pitch - 2048) * 4);
 			last_pitch_normal = false;
 
 			if(pitch < (ANALOG_PITCH_MIDDLE - ANALOG_RANGE))
@@ -248,7 +384,7 @@ void monitor_analog()
 		{
 			if(last_pitch_normal == false)
 			{
-				MIDI_DEVICE.pitch_wheel(_state.channel, 0);
+				MIDI_USB_DEVICE.pitch_wheel(_state.channel, 0);
 				led_set(LED_TYPE_OCTAVE_DOWN_A, false);
 				led_set(LED_TYPE_OCTAVE_UP_A, false);
 			}
@@ -260,7 +396,7 @@ void monitor_analog()
 		if((volume < (_state.volume_last - ANALOG_RANGE)) || (volume > (_state.volume_last + ANALOG_RANGE)))
 		{
 			_state.volume_last = volume;
-			MIDI_DEVICE.volume(_state.channel, volume * 4);
+			MIDI_USB_DEVICE.volume(_state.channel, volume * 4);
 		}
 
 		// todo: monitor expression
@@ -274,20 +410,24 @@ void main_app()
 	keyboard_register_callback(keyboard_event_handler);
 	keypad_register_callback(keypad_event_handler);
 
-	// blink 3 times
-	for(uint32_t i=0; i<3; i++)
+	// blink the midi version
+#if MIDI_VERSION == 1
+	for(uint32_t i=0; i<1; i++)
+#else
+	for(uint32_t i=0; i<2; i++)
+#endif
 	{
 		led_set(LED_TYPE_ADVANCED, true);
-		wait_ms(100);
+		wait_ms(200);
 		led_set(LED_TYPE_ADVANCED, false);
-		wait_ms(100);
+		wait_ms(200);
 	}
 
 	// can you say "super loop"?
 	while(1)
 	{
 		keyboard_task();
-		MIDI_DEVICE.task();
+		MIDI_USB_DEVICE.task();
 		monitor_input();
 		monitor_analog();
 		keypad_task();
