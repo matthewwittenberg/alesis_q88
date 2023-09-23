@@ -4,16 +4,16 @@
 #include "NUC100Series.h"
 #include "usbd.h"
 
-#define MIDI_TX_QUEUE_DEPTH 512
-#define MIDI_RX_QUEUE_DEPTH 512
+#define MIDI_USB_TX_QUEUE_DEPTH 512
+#define MIDI_USB_RX_QUEUE_DEPTH 512
 
-uint8_t _midi_tx_queue[MIDI_TX_QUEUE_DEPTH];
-uint32_t _midi_tx_queue_head = 0;
-uint32_t _midi_tx_queue_tail = 0;
+uint8_t _midi_usb_tx_queue[MIDI_USB_TX_QUEUE_DEPTH];
+uint32_t _midi_usb_tx_queue_head = 0;
+uint32_t _midi_usb_tx_queue_tail = 0;
 
-uint8_t _midi_rx_queue[MIDI_RX_QUEUE_DEPTH];
-uint32_t _midi_rx_queue_head = 0;
-uint32_t _midi_rx_queue_tail = 0;
+uint8_t _midi_usb_rx_queue[MIDI_USB_RX_QUEUE_DEPTH];
+uint32_t _midi_usb_rx_queue_head = 0;
+uint32_t _midi_usb_rx_queue_tail = 0;
 
 uint8_t volatile g_u8EP2Ready = 0;
 uint8_t volatile g_u8Suspend = 0;
@@ -161,10 +161,10 @@ void EP3_Handler(void)
 
 	for(uint32_t i=0; i<length; i++)
 	{
-		_midi_rx_queue[_midi_rx_queue_head] = pdata[i];
-		_midi_rx_queue_head++;
-		if(_midi_rx_queue_head >= MIDI_RX_QUEUE_DEPTH)
-			_midi_rx_queue_head = 0;
+		_midi_usb_rx_queue[_midi_usb_rx_queue_head] = pdata[i];
+		_midi_usb_rx_queue_head++;
+		if(_midi_usb_rx_queue_head >= MIDI_USB_RX_QUEUE_DEPTH)
+			_midi_usb_rx_queue_head = 0;
 	}
 
 	USBD_SET_PAYLOAD_LEN(EP3, EP3_MAX_PKT_SIZE);
@@ -271,29 +271,29 @@ void midi_usb_driver_init(void)
 
 void midi_usb_driver_tx(uint8_t *pmessage, uint32_t length)
 {
-	uint32_t head = _midi_tx_queue_head;
+	uint32_t head = _midi_usb_tx_queue_head;
 
 	for(uint32_t i=0; i<length; i++)
 	{
-		_midi_tx_queue[head] = pmessage[i];
+		_midi_usb_tx_queue[head] = pmessage[i];
 		head++;
-		if(head >= MIDI_TX_QUEUE_DEPTH)
+		if(head >= MIDI_USB_TX_QUEUE_DEPTH)
 			head = 0;
 	}
 
-	_midi_tx_queue_head = head;
+	_midi_usb_tx_queue_head = head;
 }
 
 uint32_t midi_usb_driver_rx(uint8_t *pmessage, uint32_t length)
 {
 	uint32_t bytes_read = 0;
 
-	while(_midi_rx_queue_tail != _midi_rx_queue_head)
+	while(_midi_usb_rx_queue_tail != _midi_usb_rx_queue_head)
 	{
-		pmessage[bytes_read++] = _midi_rx_queue[_midi_rx_queue_tail];
-		_midi_rx_queue_tail++;
-		if(_midi_rx_queue_tail >= MIDI_RX_QUEUE_DEPTH)
-			_midi_rx_queue_tail = 0;
+		pmessage[bytes_read++] = _midi_usb_rx_queue[_midi_usb_rx_queue_tail];
+		_midi_usb_rx_queue_tail++;
+		if(_midi_usb_rx_queue_tail >= MIDI_USB_RX_QUEUE_DEPTH)
+			_midi_usb_rx_queue_tail = 0;
 
 		if(bytes_read >= length)
 			break;
@@ -308,17 +308,17 @@ void midi_usb_driver_task()
 
     if(g_u8EP2Ready)
     {
-    	if(_midi_tx_queue_tail != _midi_tx_queue_head)
+    	if(_midi_usb_tx_queue_tail != _midi_usb_tx_queue_head)
     	{
     		uint32_t index = 0;
     		buf = (uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP2));
 
-    		while(_midi_tx_queue_tail != _midi_tx_queue_head)
+    		while(_midi_usb_tx_queue_tail != _midi_usb_tx_queue_head)
 			{
-    			buf[index++] = _midi_tx_queue[_midi_tx_queue_tail];
-    			_midi_tx_queue_tail++;
-				if(_midi_tx_queue_tail >= MIDI_TX_QUEUE_DEPTH)
-					_midi_tx_queue_tail = 0;
+    			buf[index++] = _midi_usb_tx_queue[_midi_usb_tx_queue_tail];
+    			_midi_usb_tx_queue_tail++;
+				if(_midi_usb_tx_queue_tail >= MIDI_USB_TX_QUEUE_DEPTH)
+					_midi_usb_tx_queue_tail = 0;
 
 				if(index >= EP2_MAX_PKT_SIZE)
 					break;
@@ -334,6 +334,6 @@ void midi_usb_driver_task()
 
 void midi_usb_flush_rx()
 {
-	_midi_rx_queue_head = 0;
-	_midi_rx_queue_tail = 0;
+	_midi_usb_rx_queue_head = 0;
+	_midi_usb_rx_queue_tail = 0;
 }

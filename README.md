@@ -34,11 +34,10 @@ Project to reverse engineer a full 88 key MIDI controller and ultimately make MI
 2. MIDI 2.0 implemented but not tested so far.
 ## To Do
 1. Test MIDI 2.0 support.
-2. Serial MIDI support.
-3. Some of the extra advanced functions.
-4. Add commenting.
-5. Expression pedal.
-6. Directional/transport button support (buttons work but not handled).
+2. Some of the extra advanced functions.
+3. Add commenting.
+4. Expression pedal.
+5. Directional/transport button support (buttons work but not handled).
 ## Code
 1. keyboard.c owns the keyboard task, it scans and processes key presses.
 2. Went with a super loop instead of an OS due to processor resource constraints.
@@ -57,14 +56,14 @@ To the best of my knowledge, here is the map of microcontroller pins:
 |8|PA.9| keypad row 1 |
 |9|PA.8| keypad row 2 |
 |10|PB.4| keypad row 3 |
-|11|PB.5|              |
-|12|PB.6|              |
+|11|PB.5| serial midi tx |
+|12|PB.6| |
 |13|PB.7| sustain pedal |
-|14|LDO|                  |
+|14|LDO| |
 |15|VDD| 3.3VDC |
 |16|VSS| GND |
 |17|VBUS| USB detect |
-|18|VDD33|  |
+|18|VDD33| |
 |19|D-| USBD- |
 |20|D+| USBD+ |
 |21|PB.0| keyboard press group 7 |
@@ -104,11 +103,11 @@ To the best of my knowledge, here is the map of microcontroller pins:
 |55|PC.15| keyboard detect group 6 |
 |56|PC.14| keyboard press group 6 |
 |57|PB.15| keyboard key 8 |
-|58|PF.0|                   |
-|59|PF.1|                   |
+|58|PF.0| |
+|59|PF.1| |
 |60|/RESET| RESET |
 |61|VSS| GND |
 |62|VDD| 3.3VDC |
-|63|PVSS|                   |
+|63|PVSS| |
 |64|PB.8| keyboard key 1 |
 

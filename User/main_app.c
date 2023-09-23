@@ -283,7 +283,10 @@ void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t veloci
 			{
 				uint8_t program = atoi(_number_buffer);
 				if(program > 0)
+				{
 					MIDI_USB_DEVICE.program_change(_state.channel, program - 1);
+					MIDI_SERIAL_DEVICE.program_change(_state.channel, program - 1);
+				}
 				enable_advanced_mode(false);
 			}
 			break;
@@ -310,6 +313,8 @@ void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t veloci
 
 			// translate from linear response to...
 			velocity = VELOCITY_LOOKUP_TABLE[velocity];
+
+			MIDI_SERIAL_DEVICE.note_on(note + _state.note_offset, _state.channel, velocity);
 		}
 		else
 		{
@@ -323,6 +328,7 @@ void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t veloci
 	else if(event == KEYBOARD_EVENT_RELEASE)
 	{
 		MIDI_USB_DEVICE.note_on(note + _state.note_offset, _state.channel, 0);
+		MIDI_SERIAL_DEVICE.note_on(note + _state.note_offset, _state.channel, 0);
 	}
 }
 
@@ -333,6 +339,7 @@ void monitor_input()
 		if(_state.in_sustain == false)
 		{
 			MIDI_USB_DEVICE.sustain(_state.channel, true);
+			MIDI_SERIAL_DEVICE.sustain(_state.channel, true);
 			_state.in_sustain = true;
 		}
 	}
@@ -341,6 +348,7 @@ void monitor_input()
 		if(_state.in_sustain)
 		{
 			MIDI_USB_DEVICE.sustain(_state.channel, false);
+			MIDI_SERIAL_DEVICE.sustain(_state.channel, false);
 			_state.in_sustain = false;
 		}
 	}
@@ -367,12 +375,14 @@ void monitor_analog()
 		{
 			_state.modulation_last = modulation;
 			MIDI_USB_DEVICE.modulation_wheel(_state.channel, modulation * 4);
+			MIDI_SERIAL_DEVICE.modulation_wheel(_state.channel, modulation * 4);
 		}
 
 		// monitor pitch
 		if((pitch < (ANALOG_PITCH_MIDDLE - ANALOG_RANGE)) || (pitch > (ANALOG_PITCH_MIDDLE + ANALOG_RANGE)))
 		{
 			MIDI_USB_DEVICE.pitch_wheel(_state.channel, (pitch - 2048) * 4);
+			MIDI_SERIAL_DEVICE.pitch_wheel(_state.channel, (pitch - 2048) * 4);
 			last_pitch_normal = false;
 
 			if(pitch < (ANALOG_PITCH_MIDDLE - ANALOG_RANGE))
@@ -385,6 +395,7 @@ void monitor_analog()
 			if(last_pitch_normal == false)
 			{
 				MIDI_USB_DEVICE.pitch_wheel(_state.channel, 0);
+				MIDI_SERIAL_DEVICE.pitch_wheel(_state.channel, 0);
 				led_set(LED_TYPE_OCTAVE_DOWN_A, false);
 				led_set(LED_TYPE_OCTAVE_UP_A, false);
 			}
@@ -397,6 +408,7 @@ void monitor_analog()
 		{
 			_state.volume_last = volume;
 			MIDI_USB_DEVICE.volume(_state.channel, volume * 4);
+			MIDI_SERIAL_DEVICE.volume(_state.channel, volume * 4);
 		}
 
 		// todo: monitor expression
@@ -428,6 +440,7 @@ void main_app()
 	{
 		keyboard_task();
 		MIDI_USB_DEVICE.task();
+		MIDI_SERIAL_DEVICE.task();
 		monitor_input();
 		monitor_analog();
 		keypad_task();
