@@ -24,6 +24,9 @@
 #define ADVANCED_STATE_LED_BLINK_MS 500
 #define MIDI_1_0_VELOCITY_DIVIDER (KEYBOARD_SLOWEST_VELOCITY / 127)
 #define MIDI_2_0_VELOCITY_MULTIPLIER (65536 / KEYBOARD_SLOWEST_VELOCITY)
+#define USE_MIDI_SENSE	// comment out to stop sense
+#define MIDI_SENSE_RATE_MS 1000
+#define USE_MIDI_NOTE_OFF	// comment out to use note on with velocity 0 instead
 
 #define ADVANCED_NOTE_CANCEL 24
 #define ADVANCED_NOTE_CHANNEL1 26
@@ -300,35 +303,37 @@ void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t veloci
 
 	if(event == KEYBOARD_EVENT_PRESS)
 	{
-		if(MIDI_USB_DEVICE.version == MIDI_VERSION_1_0)
+		// convert to 0-126
+		velocity /= MIDI_1_0_VELOCITY_DIVIDER;
+		velocity = 126 - velocity;
+
+		if(velocity > 126)
+			velocity = 126;
+		if(velocity < 0)
+			velocity = 0;
+
+		// translate from linear response to...
+		velocity = VELOCITY_LOOKUP_TABLE[velocity];
+
+		MIDI_SERIAL_DEVICE.note_on(note + _state.note_offset, _state.channel, velocity);
+
+		if(MIDI_USB_DEVICE.version == MIDI_VERSION_2_0)
 		{
-			// convert to 0-126
-			velocity /= MIDI_1_0_VELOCITY_DIVIDER;
-			velocity = 126 - velocity;
-
-			if(velocity > 126)
-				velocity = 126;
-			if(velocity < 0)
-				velocity = 0;
-
-			// translate from linear response to...
-			velocity = VELOCITY_LOOKUP_TABLE[velocity];
-
-			MIDI_SERIAL_DEVICE.note_on(note + _state.note_offset, _state.channel, velocity);
-		}
-		else
-		{
-			// linear for now
-			velocity *= MIDI_2_0_VELOCITY_MULTIPLIER;
-			velocity = 65536 - velocity;
+			// convert to 16 bit
+			velocity = velocity * 512;
 		}
 
 		MIDI_USB_DEVICE.note_on(note + _state.note_offset, _state.channel, velocity);
 	}
 	else if(event == KEYBOARD_EVENT_RELEASE)
 	{
+#ifdef USE_MIDI_NOTE_OFF
+		MIDI_USB_DEVICE.note_off(note + _state.note_offset, _state.channel, 0);
+		MIDI_SERIAL_DEVICE.note_off(note + _state.note_offset, _state.channel, 0);
+#else
 		MIDI_USB_DEVICE.note_on(note + _state.note_offset, _state.channel, 0);
-		MIDI_SERIAL_DEVICE.note_on(note + _state.note_offset, _state.channel, 0);
+	    MIDI_SERIAL_DEVICE.note_on(note + _state.note_offset, _state.channel, 0);
+#endif
 	}
 }
 
@@ -417,6 +422,22 @@ void monitor_analog()
 	}
 }
 
+void sense_task()
+{
+#ifdef USE_MIDI_SENSE
+	static uint32_t sense_tick = 0;
+
+	if(sense_tick + MIDI_SENSE_RATE_MS < get_ms())
+	{
+		MIDI_USB_DEVICE.sense();
+		MIDI_SERIAL_DEVICE.sense();
+
+		sense_tick += MIDI_SENSE_RATE_MS;
+	}
+
+#endif
+}
+
 void main_app()
 {
 	keyboard_register_callback(keyboard_event_handler);
@@ -444,5 +465,6 @@ void main_app()
 		monitor_input();
 		monitor_analog();
 		keypad_task();
+		sense_task();
 	}
 }

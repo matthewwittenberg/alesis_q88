@@ -92,6 +92,7 @@ void midi_usb_program_change(uint8_t channel, uint8_t program)
 
 #define SYSEX_BUFFER_LENGTH 128
 #define MIDI20_MESSAGE_LENGTH 16
+#define USE_VOICE_10_MESSAGE	// comment to use 2.0 voice messages
 
 uint8_t _midi20_sysex_buffer[SYSEX_BUFFER_LENGTH];
 uint32_t _midi20_sysex_buffer_index = 0;
@@ -215,6 +216,13 @@ void midi_usb_task()
 
 void midi_usb_note_on(uint8_t note, uint8_t channel, uint16_t velocity)
 {
+#ifdef USE_VOICE_10_MESSAGE
+    uint8_t message[4];
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_NOTE_ON | channel;
+    message[2] = note;
+    message[3] = velocity / 512;
+#else
     uint8_t message[8];
     message[0] = MIDI20_MESSAGE_TYPE_20_CHANNEL_VOICE;
     message[1] = MIDI_NOTE_ON | channel;
@@ -224,11 +232,19 @@ void midi_usb_note_on(uint8_t note, uint8_t channel, uint16_t velocity)
     message[5] = velocity >> 8;
     message[6] = 0; // attribute lsb
     message[7] = 0; // attribute msb
+#endif
     midi_usb_driver_tx(message, sizeof(message));
 }
 
 void midi_usb_note_off(uint8_t note, uint8_t channel, uint16_t velocity)
 {
+#ifdef USE_VOICE_10_MESSAGE
+    uint8_t message[4];
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_NOTE_OFF | channel;
+    message[2] = note;
+    message[3] = velocity / 512;
+#else
     uint8_t message[8];
     message[0] = MIDI20_MESSAGE_TYPE_20_CHANNEL_VOICE;
     message[1] = MIDI_NOTE_OFF | channel;
@@ -238,11 +254,22 @@ void midi_usb_note_off(uint8_t note, uint8_t channel, uint16_t velocity)
     message[5] = velocity >> 8;
     message[6] = 0; // attribute lsb
     message[7] = 0; // attribute msb
+#endif
     midi_usb_driver_tx(message, sizeof(message));
 }
 
 void midi_usb_pitch_wheel(uint8_t channel, int32_t pitch)
 {
+#ifdef USE_VOICE_10_MESSAGE
+	pitch = (pitch + 8192) & 0x3FFF;
+    uint32_t pitch_new = (pitch & 0x7F) | ((pitch << 1) & 0x7F00);
+
+    uint8_t message[4];
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_PITCH_WHEEL | channel;
+    message[2] = pitch & 0x7F;
+    message[3] = (pitch >> 7) & 0x7F;
+#else
     pitch += 0x80000000;
 
     uint8_t message[8];
@@ -254,11 +281,26 @@ void midi_usb_pitch_wheel(uint8_t channel, int32_t pitch)
     message[5] = pitch >> 8;
     message[6] = pitch >> 16;
     message[7] = pitch >> 24;
+#endif
     midi_usb_driver_tx(message, sizeof(message));
 }
 
 void midi_usb_modulation_wheel(uint8_t channel, uint16_t modulation)
 {
+#ifdef USE_VOICE_10_MESSAGE
+    uint8_t message[4];
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_CONTROLLER | channel;
+    message[2] = MIDI_CONT_MOD_WHEEL_FINE;
+    message[3] = modulation & 0x7F;
+    midi_usb_driver_tx(message, sizeof(message));
+
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_CONTROLLER | channel;
+    message[2] = MIDI_CONT_MOD_WHEEL_COARSE;
+    message[3] = (modulation >> 8) & 0x7F;
+    midi_usb_driver_tx(message, sizeof(message));
+#else
     modulation = modulation & 0x3FFF;
 
     uint8_t message[8];
@@ -271,10 +313,26 @@ void midi_usb_modulation_wheel(uint8_t channel, uint16_t modulation)
     message[6] = 0;
     message[7] = 0;
     midi_usb_driver_tx(message, sizeof(message));
+#endif
+
 }
 
 void midi_usb_volume(uint8_t channel, uint16_t volume)
 {
+#ifdef USE_VOICE_10_MESSAGE
+    uint8_t message[4];
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_CONTROLLER | channel;
+    message[2] = MIDI_CONT_VOLUME_FINE;
+    message[3] = volume & 0x7F;
+    midi_usb_driver_tx(message, sizeof(message));
+
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_CONTROLLER | channel;
+    message[2] = MIDI_CONT_VOLUME_COARSE;
+    message[3] = (volume >> 8) & 0x7F;
+    midi_usb_driver_tx(message, sizeof(message));
+#else
     volume = volume & 0x3FFF;
 
     uint8_t message[8];
@@ -287,6 +345,7 @@ void midi_usb_volume(uint8_t channel, uint16_t volume)
     message[6] = 0;
     message[7] = 0;
     midi_usb_driver_tx(message, sizeof(message));
+#endif
 }
 
 void midi_usb_sense()
@@ -301,6 +360,14 @@ void midi_usb_sense()
 
 void midi_usb_sustain(uint8_t channel, bool on)
 {
+#ifdef USE_VOICE_10_MESSAGE
+    uint8_t message[4];
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_CONTROLLER | channel;
+    message[2] = MIDI_CONT_HOLD_PEDAL;
+    message[3] = on ? 0x7F : 0x00;
+    midi_usb_driver_tx(message, sizeof(message));
+#else
     uint32_t hold_value = on ? 0x7F : 0;
 
     uint8_t message[8];
@@ -313,6 +380,7 @@ void midi_usb_sustain(uint8_t channel, bool on)
     message[6] = 0;
     message[7] = 0;
     midi_usb_driver_tx(message, sizeof(message));
+#endif
 }
 
 void midi_usb_program_change(uint8_t channel, uint8_t program)
