@@ -26,7 +26,7 @@
 #define MIDI_2_0_VELOCITY_MULTIPLIER (65536 / KEYBOARD_SLOWEST_VELOCITY)
 #define USE_MIDI_SENSE	// comment out to stop sense
 #define MIDI_SENSE_RATE_MS 1000
-#define USE_MIDI_NOTE_OFF	// comment out to use note on with velocity 0 instead
+//#define USE_MIDI_NOTE_OFF	// comment out to use note on with velocity 0 instead
 
 #define ADVANCED_NOTE_CANCEL 24
 #define ADVANCED_NOTE_CHANNEL1 26
@@ -55,7 +55,7 @@
 #define ADVANCED_NOTE_7 67
 #define ADVANCED_NOTE_8 69
 #define ADVANCED_NOTE_9 71
-#define ADVANCED_NOTE_PROGRAM 72
+#define ADVANCED_NOTE_PROGRAM 30
 #define ADVANCED_NOTE_ENTER 74
 
 

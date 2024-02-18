@@ -385,7 +385,24 @@ void midi_usb_sustain(uint8_t channel, bool on)
 
 void midi_usb_program_change(uint8_t channel, uint8_t program)
 {
-	// todo
+#ifdef USE_VOICE_10_MESSAGE
+    uint8_t message[4];
+    message[0] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+    message[1] = MIDI_PROGRAM_CHANGE | channel;
+    message[2] = program;
+    message[3] = 0;
+#else
+    uint8_t message[8];
+    message[0] = MIDI20_MESSAGE_TYPE_20_CHANNEL_VOICE;
+    message[1] = MIDI_NOTE_ON | channel;
+    message[2] = 0; // reserved
+    message[3] = 0; // options
+    message[4] = program;
+    message[5] = 0; // reserved
+    message[6] = 0; // bank msb
+    message[7] = 0; // bankl lsb
+#endif
+    midi_usb_driver_tx(message, sizeof(message));
 }
 
 #else
