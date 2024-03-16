@@ -2,6 +2,7 @@
 #define __USBD_HID_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* Define the vendor id and product id */
 #define USBD_VID        0x13B2
@@ -47,5 +48,6 @@ void midi_usb_flush_rx();
 void midi_usb_driver_task();
 
 extern uint8_t volatile g_u8Suspend;
+extern bool IS_MIDI_2_0;
 
 #endif

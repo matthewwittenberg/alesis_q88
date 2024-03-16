@@ -57,10 +57,6 @@ void midi_device_init()
 	MIDI_USB_DEVICE.sustain = midi_usb_sustain;
 	MIDI_USB_DEVICE.program_change = midi_usb_program_change;
 	MIDI_USB_DEVICE.task = midi_usb_task;
-#if MIDI_VERSION == 1
 	MIDI_USB_DEVICE.version = MIDI_VERSION_1_0;
-#elif MIDI_VERSION == 2
-	MIDI_USB_DEVICE.version = MIDI_VERSION_2_0;
-#endif
 	MIDI_USB_DEVICE.init();
 }

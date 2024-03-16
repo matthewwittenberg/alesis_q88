@@ -24,7 +24,7 @@
 #define ADVANCED_STATE_LED_BLINK_MS 500
 #define MIDI_1_0_VELOCITY_DIVIDER (KEYBOARD_SLOWEST_VELOCITY / 127)
 #define MIDI_2_0_VELOCITY_MULTIPLIER (65536 / KEYBOARD_SLOWEST_VELOCITY)
-#define USE_MIDI_SENSE	// comment out to stop sense
+//#define USE_MIDI_SENSE	// comment out to stop sense
 #define MIDI_SENSE_RATE_MS 1000
 //#define USE_MIDI_NOTE_OFF	// comment out to use note on with velocity 0 instead
 
@@ -86,6 +86,7 @@ APP_STATE_T _state = {
 
 uint32_t _number_buffer_index = 0;
 char _number_buffer[8];
+extern bool IS_MIDI_2_0;
 
 // built table in excel with formula: =EXP(A1*0.03815)
 // response is decent compared to linear
@@ -317,7 +318,7 @@ void keyboard_event_handler(KEYBOARD_EVENT_T event, uint8_t note, int16_t veloci
 
 		MIDI_SERIAL_DEVICE.note_on(note + _state.note_offset, _state.channel, velocity);
 
-		if(MIDI_USB_DEVICE.version == MIDI_VERSION_2_0)
+		if(IS_MIDI_2_0)
 		{
 			// convert to 16 bit
 			velocity = velocity * 512;
@@ -443,12 +444,8 @@ void main_app()
 	keyboard_register_callback(keyboard_event_handler);
 	keypad_register_callback(keypad_event_handler);
 
-	// blink the midi version
-#if MIDI_VERSION == 1
-	for(uint32_t i=0; i<1; i++)
-#else
+	// 2 blinks
 	for(uint32_t i=0; i<2; i++)
-#endif
 	{
 		led_set(LED_TYPE_ADVANCED, true);
 		wait_ms(200);

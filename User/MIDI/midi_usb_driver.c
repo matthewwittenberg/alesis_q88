@@ -20,6 +20,8 @@ uint8_t volatile g_u8Suspend = 0;
 uint8_t g_u8Idle = 0;
 uint8_t g_u8Protocol = 0;
 
+bool IS_MIDI_2_0 = false;
+
 void EP2_Handler(void);
 void EP3_Handler(void);
 
@@ -199,17 +201,16 @@ void midi_usb_class_request()
 			break;
 
 		case REQ_STANDARD:
-			if(setup.bRequest == GET_DESCRIPTOR)
-			{
 #if MIDI_VERSION == 2
+			if(setup.bRequest == GET_DESCRIPTOR) {
 				if(setup.wValue == 0x2601)
 				{
 					USBD_PrepareCtrlIn(USBD_MIDI20_TERM_BLOCK_DESC, sizeof(USBD_MIDI20_TERM_BLOCK_DESC));
 					USBD_PrepareCtrlOut(0, 0);
 					handled = true;
 				}
-#endif
 			}
+#endif
 
 			break;
 
@@ -224,6 +225,29 @@ void midi_usb_class_request()
 	}
 }
 
+void midi_usb_set_interface()
+{
+	USBD_SETUP_PACKET_T setup;
+	bool handled = false;
+
+	USBD_GetSetupPacket((uint8_t*)&setup);
+
+	// interface should be 1
+	if(setup.wIndex == 1)
+	{
+		if(setup.wValue == 0x00) {
+			IS_MIDI_2_0 = false;
+			USBD_PrepareCtrlIn(0, 0);
+			USBD_PrepareCtrlOut(0, 0);
+		}
+		else if(setup.wValue == 0x01) {
+			IS_MIDI_2_0 = true;
+			USBD_PrepareCtrlIn(0, 0);
+			USBD_PrepareCtrlOut(0, 0);
+		}
+	}
+}
+
 
 /*--------------------------------------------------------------------------*/
 /**
@@ -233,7 +257,7 @@ void midi_usb_class_request()
   */
 void midi_usb_driver_init(void)
 {
-	USBD_Open(&gsInfo, midi_usb_class_request, NULL);
+	USBD_Open(&gsInfo, midi_usb_class_request, midi_usb_set_interface);
 	USBD_Start();
 	NVIC_EnableIRQ(USBD_IRQn);
 

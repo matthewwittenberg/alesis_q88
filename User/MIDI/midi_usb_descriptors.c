@@ -165,7 +165,7 @@ const uint8_t gu8ConfigDescriptor[] =
 
 #elif MIDI_VERSION == 2
 
-#define USBD_MIDI20_CONFIG_DESC_SIZE 67
+#define USBD_MIDI20_CONFIG_DESC_SIZE 137
 const uint8_t gu8ConfigDescriptor[] =
 {
     0x09,                               /* bLength */
@@ -200,11 +200,101 @@ const uint8_t gu8ConfigDescriptor[] =
     0x01,                               /* bInCollection */
     0x01,                               /* bInterfaceNr */
 
-    /* MIDI STREAM INTERFACE */
+	/* MIDI STREAM INTERFACE */
+	0x09,                               /* bLength */
+	DESC_INTERFACE,            /* bDescriptorType */
+	0x01,                               /* bInterfaceNumber */
+	0x00,                               /* bAlternateSetting */
+	0x02,                               /* bNumEndpoints */
+	0x01,                               /* bInterfaceClass */
+	0x03,                               /* bInterfaceSubClass */
+	0x00,                               /* bInterfaceProtocol */
+	0x00,                               /* iInterface */
+
+	/* MIDI 1.0 STREAM INTERFACE HEADER */
+	0x07,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x01,                               /* bDescriptorSubtype */
+	0x00,                               /* bcdMSC */
+	0x01,
+	54,                                 /* wTotalLength */
+	0x00,
+
+	/* MIDI IN JACK */
+	0x06,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x02,                               /* bDescriptorSubtype */
+	0x01,                               /* bJackType */
+	0x01,                               /* bJackID */
+	0x00,                               /* iJack */
+
+	/* MIDI IN JACK */
+	0x06,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x02,                               /* bDescriptorSubtype */
+	0x02,                               /* bJackType */
+	0x02,                               /* bJackID */
+	0x00,                               /* iJack */
+
+	/* MIDI OUT JACK */
+	0x09,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x03,                               /* bDescriptorSubtype */
+	0x01,                               /* bJackType */
+	0x03,                               /* bJackID */
+	0x01,                               /* bNrInputPins */
+	0x02,                               /* baSourceID1 */
+	0x01,                               /* BaSourcePin1 */
+	0x00,                               /* iJack */
+
+	/* MIDI OUT JACK */
+	0x09,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x03,                               /* bDescriptorSubtype */
+	0x02,                               /* bJackType */
+	0x04,                               /* bJackID */
+	0x01,                               /* bNrInputPins */
+	0x01,                               /* baSourceID1 */
+	0x01,                               /* BaSourcePin1 */
+	0x00,                               /* iJack */
+
+	/* OUT ENDPOINT */
+	0x07,                               /* bLength */
+	DESC_ENDPOINT,             /* bDescriptorType */
+	USBD_MIDI_EP_OUT_ADDR,            /* bEndpointAddress */
+	0x02,                               /* bmAttributes */
+	EP3_MAX_PKT_SIZE,     /* wMaxPacketSize */
+	0x00,
+	0x00,                               /* bInterval */
+
+	/* OUT ENDPOINT MS */
+	0x05,                               /* bLength */
+	0x25,                               /* bDescriptorType */
+	0x01,                               /* bDescriptorSubtype */
+	0x01,                               /* bNumEmbMIDIJack */
+	0x01,                               /* baAssocJackID */
+
+	/* IN ENDPOINT */
+	0x07,                               /* bLength */
+	DESC_ENDPOINT,             /* bDescriptorType */
+	(USBD_MIDI_EP_IN_ADDR | EP_INPUT),             /* bEndpointAddress */
+	0x02,                               /* bmAttributes */
+	EP2_MAX_PKT_SIZE,     /* wMaxPacketSize */
+	0x00,
+	0x00,                               /* bInterval */
+
+	/* IN ENDPOINT MS */
+	0x05,                               /* bLength */
+	0x25,                               /* bDescriptorType */
+	0x01,                               /* bDescriptorSubtype */
+	0x01,                               /* bNumEmbMIDIJack */
+	0x03,                               /* baAssocJackID */
+
+    /* MIDI 2.0 STREAM INTERFACE */
     0x09,                               /* bLength */
 	DESC_INTERFACE,            /* bDescriptorType */
     0x01,                               /* bInterfaceNumber */
-    0x00,                               /* bAlternateSetting */
+    0x01,                               /* bAlternateSetting */
     0x02,                               /* bNumEndpoints */
     0x01,                               /* bInterfaceClass */
     0x03,                               /* bInterfaceSubClass */
@@ -217,7 +307,7 @@ const uint8_t gu8ConfigDescriptor[] =
     0x01,                               /* bDescriptorSubtype */
     0x00,                               /* bcdMSC */
     0x02,
-    24,                                 /* wTotalLength */
+    0x07,                                 /* wTotalLength */
     0x00,
 
 	/* OUT ENDPOINT */
