@@ -40,6 +40,8 @@
 #define MIDI20_MESSAGE_TYPE_DATA64 0x30
 #define MIDI20_MESSAGE_TYPE_20_CHANNEL_VOICE 0x40
 #define MIDI20_MESSAGE_TYPE_DATA128 0x50
+#define MIDI20_MESSAGE_TYPE_FLEX 0xD0
+#define MIDI20_MESSAGE_TYPE_STREAM 0xF0
 
 // ==============================================
 // MIDI 2.0 SYSEX STATUS
@@ -48,6 +50,14 @@
 #define MIDI20_SYSEX_STATUS_START 0x10
 #define MIDI20_SYSEX_STATUS_CONTINUE 0x20
 #define MIDI20_SYSEX_STATUS_STOP 0x30
+
+// ==============================================
+// MIDI 2.0 STREAM STATUS
+// ==============================================
+#define MIDI20_STREAM_STATUS_COMPLETE_IN_1 0x00
+#define MIDI20_STREAM_STATUS_START 0x04
+#define MIDI20_STREAM_STATUS_CONTINUE 0x08
+#define MIDI20_STREAM_STATUS_STOP 0x0C
 
 // ==============================================
 // MIDI 2.0 CI

@@ -23,7 +23,7 @@ typedef enum
 	KEYBOARD_EVENT_RELEASE,
 } KEYBOARD_EVENT_T;
 
-typedef void (*keyboard_event_callback)(KEYBOARD_EVENT_T event, uint8_t note, int16_t velocity);
+typedef void (*keyboard_event_callback)(KEYBOARD_EVENT_T event, uint8_t note, int32_t velocity);
 
 void keyboard_init();
 void keyboard_task();

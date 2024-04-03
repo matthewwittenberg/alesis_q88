@@ -205,7 +205,12 @@ void midi_usb_class_request()
 			if(setup.bRequest == GET_DESCRIPTOR) {
 				if(setup.wValue == 0x2601)
 				{
-					USBD_PrepareCtrlIn(USBD_MIDI20_TERM_BLOCK_DESC, sizeof(USBD_MIDI20_TERM_BLOCK_DESC));
+					uint16_t length = setup.wLength;
+
+					if(length > sizeof(USBD_MIDI20_TERM_BLOCK_DESC))
+						length = sizeof(USBD_MIDI20_TERM_BLOCK_DESC);
+
+					USBD_PrepareCtrlIn(USBD_MIDI20_TERM_BLOCK_DESC, length);
 					USBD_PrepareCtrlOut(0, 0);
 					handled = true;
 				}

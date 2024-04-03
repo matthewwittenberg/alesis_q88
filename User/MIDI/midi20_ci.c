@@ -10,6 +10,9 @@ extern const char* PRODUCT_NAME;
 extern const uint16_t PRODUCT_FAMILY;
 extern const uint16_t PRODUCT_MODEL;
 extern const uint32_t PRODUCT_SOFTWARE_VERSION;
+extern const char* PRODUCT_NAME;
+extern const char* PRODUCT_INSTANCE_ID;
+extern const char* FUNCTION_BLOCK_1_NAME;
 
 #define CI_MAX_SYSEX_SIZE 128
 
@@ -549,4 +552,317 @@ void midi20_ci_process(uint8_t *pmessage, uint32_t length, ci_process_callback c
             midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_CI_MESSAGE_NOT_SUPPORTED, "message not supported");
         return;
     }
+}
+
+uint8_t product_name_byte(uint8_t index)
+{
+	if(index < strlen(PRODUCT_NAME)) {
+		return PRODUCT_NAME[index];
+	}
+
+	return 0;
+}
+
+uint8_t product_instance_id_byte(uint8_t index)
+{
+	if(index < strlen(PRODUCT_INSTANCE_ID)) {
+		return PRODUCT_INSTANCE_ID[index];
+	}
+
+	return 0;
+}
+
+uint8_t function_block_name_byte(uint8_t index)
+{
+	if(index < strlen(FUNCTION_BLOCK_1_NAME)) {
+		return FUNCTION_BLOCK_1_NAME[index];
+	}
+
+	return 0;
+}
+
+// pmessage contains just the payload bytes, not the status and packet type (14 bytes * n packets)
+void midi20_stream_process(uint16_t status, uint8_t *pmessage, uint32_t length, ci_process_callback callback)
+{
+	uint8_t reply_message[16];
+
+	// endpoint discovery message
+	if(status == 0x00)
+	{
+		uint8_t filter_bitmap = pmessage[2];
+		uint8_t ump_version_major = pmessage[1];
+		uint8_t ump_version_minor = pmessage[0];
+
+		// todo: look at the ump versions
+
+		// endpoint notification request
+		if(filter_bitmap & 0x01)
+		{
+			reply_message[0] = ump_version_minor;
+			reply_message[1] = ump_version_major;
+			reply_message[2] = 0x01;	// status
+			reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+			reply_message[4] = 0x00;	// no jr timestamps
+			reply_message[5] = 0x03;	// we support midi 2.0
+			reply_message[6] = 0x00;	// reserved
+			reply_message[7] = 0x81;	// static, 1 function block
+			reply_message[8] = 0x00;	// reserved
+			reply_message[9] = 0x00;	// reserved
+			reply_message[10] = 0x00;	// reserved
+			reply_message[11] = 0x00;	// reserved
+			reply_message[12] = 0x00;	// reserved
+			reply_message[13] = 0x00;	// reserved
+			reply_message[14] = 0x00;	// reserved
+			reply_message[15] = 0x00;	// reserved
+
+			callback(reply_message, sizeof(reply_message));
+		}
+
+		// device identity notification request
+		if(filter_bitmap & 0x02)
+		{
+			reply_message[0] = 0x00;	// reserved
+			reply_message[1] = 0x00;	// reserved
+			reply_message[2] = 0x02;	// status
+			reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+			reply_message[4] = MAN_ID_LO;
+			reply_message[5] = MAN_ID_MD;
+			reply_message[6] = MAN_ID_HI;
+			reply_message[7] = 0x00;	// reserved
+			reply_message[8] = PRODUCT_MODEL >> 8;
+			reply_message[9] = PRODUCT_MODEL;
+			reply_message[10] = PRODUCT_FAMILY>> 8;
+			reply_message[11] = PRODUCT_FAMILY;
+			reply_message[12] = PRODUCT_SOFTWARE_VERSION >> 24;
+			reply_message[13] = PRODUCT_SOFTWARE_VERSION >> 16;
+			reply_message[14] = PRODUCT_SOFTWARE_VERSION >> 8;
+			reply_message[15] = PRODUCT_SOFTWARE_VERSION >> 0;
+
+			callback(reply_message, sizeof(reply_message));
+		}
+
+		// product name notification request
+		if(filter_bitmap & 0x04)
+		{
+			int32_t packet_count = strlen(PRODUCT_NAME) / 14;
+			int32_t string_index = 0;
+
+			if(strlen(PRODUCT_NAME) % 14) {
+				packet_count++;
+			}
+
+			for(int32_t i=0; i<packet_count; i++)
+			{
+				reply_message[0] = product_name_byte(string_index + 1);
+				reply_message[1] = product_name_byte(string_index + 0);
+				reply_message[2] = 0x03;	// status
+				reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+				reply_message[4] = product_name_byte(string_index + 5);
+				reply_message[5] = product_name_byte(string_index + 4);
+				reply_message[6] = product_name_byte(string_index + 3);
+				reply_message[7] = product_name_byte(string_index + 2);
+				reply_message[8] = product_name_byte(string_index + 9);
+				reply_message[9] = product_name_byte(string_index + 8);
+				reply_message[10] = product_name_byte(string_index + 7);
+				reply_message[11] = product_name_byte(string_index + 6);
+				reply_message[12] = product_name_byte(string_index + 13);
+				reply_message[13] = product_name_byte(string_index + 12);
+				reply_message[14] = product_name_byte(string_index + 11);
+				reply_message[15] = product_name_byte(string_index + 10);
+
+				if(packet_count > 1)
+				{
+					if(i == 0) {
+						reply_message[3] |= MIDI20_STREAM_STATUS_START;
+					}
+					else if(i == packet_count - 1) {
+						reply_message[3] |= MIDI20_STREAM_STATUS_STOP;
+					}
+					else {
+						reply_message[3] |= MIDI20_STREAM_STATUS_CONTINUE;
+					}
+				}
+
+				callback(reply_message, sizeof(reply_message));
+
+				string_index += 14;
+			}
+		}
+
+		// product instance id notification request
+		if(filter_bitmap & 0x08)
+		{
+			int32_t packet_count = strlen(PRODUCT_INSTANCE_ID) / 14;
+			int32_t string_index = 0;
+
+			if(strlen(PRODUCT_INSTANCE_ID) % 14) {
+				packet_count++;
+			}
+
+			for(int32_t i=0; i<packet_count; i++)
+			{
+				reply_message[0] = product_instance_id_byte(string_index + 1);
+				reply_message[1] = product_instance_id_byte(string_index + 0);
+				reply_message[2] = 0x04;	// status
+				reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+				reply_message[4] = product_instance_id_byte(string_index + 5);
+				reply_message[5] = product_instance_id_byte(string_index + 4);
+				reply_message[6] = product_instance_id_byte(string_index + 3);
+				reply_message[7] = product_instance_id_byte(string_index + 2);
+				reply_message[8] = product_instance_id_byte(string_index + 9);
+				reply_message[9] = product_instance_id_byte(string_index + 8);
+				reply_message[10] = product_instance_id_byte(string_index + 7);
+				reply_message[11] = product_instance_id_byte(string_index + 6);
+				reply_message[12] = product_instance_id_byte(string_index + 13);
+				reply_message[13] = product_instance_id_byte(string_index + 12);
+				reply_message[14] = product_instance_id_byte(string_index + 11);
+				reply_message[15] = product_instance_id_byte(string_index + 10);
+
+				if(packet_count > 1)
+				{
+					if(i == 0) {
+						reply_message[3] |= MIDI20_STREAM_STATUS_START;
+					}
+					else if(i == packet_count - 1) {
+						reply_message[3] |= MIDI20_STREAM_STATUS_STOP;
+					}
+					else {
+						reply_message[3] |= MIDI20_STREAM_STATUS_CONTINUE;
+					}
+				}
+
+				callback(reply_message, sizeof(reply_message));
+
+				string_index += 14;
+			}
+		}
+
+		// stream configuration notification request
+		if(filter_bitmap & 0x10)
+		{
+			reply_message[0] = 0x00;	// no jr timestamps
+			reply_message[1] = 0x02;	// midi 2.0 protocol
+			reply_message[2] = 0x06;	// status
+			reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+			reply_message[4] = 0x00;	// reserved
+			reply_message[5] = 0x00;	// reserved
+			reply_message[6] = 0x00;	// reserved
+			reply_message[7] = 0x00;	// reserved
+			reply_message[8] = 0x00;	// reserved
+			reply_message[9] = 0x00;	// reserved
+			reply_message[10] = 0x00;	// reserved
+			reply_message[11] = 0x00;	// reserved
+			reply_message[12] = 0x00;	// reserved
+			reply_message[13] = 0x00;	// reserved
+			reply_message[14] = 0x00;	// reserved
+			reply_message[15] = 0x00;	// reserved
+
+			callback(reply_message, sizeof(reply_message));
+		}
+	}
+
+	// stream configuration request
+	if(status == 0x05)
+	{
+		// ignore the request and send back our configuration for now
+
+		reply_message[0] = 0x00;	// no jr timestamps
+		reply_message[1] = 0x02;	// midi 2.0 protocol
+		reply_message[2] = 0x06;	// status
+		reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+		reply_message[4] = 0x00;	// reserved
+		reply_message[5] = 0x00;	// reserved
+		reply_message[6] = 0x00;	// reserved
+		reply_message[7] = 0x00;	// reserved
+		reply_message[8] = 0x00;	// reserved
+		reply_message[9] = 0x00;	// reserved
+		reply_message[10] = 0x00;	// reserved
+		reply_message[11] = 0x00;	// reserved
+		reply_message[12] = 0x00;	// reserved
+		reply_message[13] = 0x00;	// reserved
+		reply_message[14] = 0x00;	// reserved
+		reply_message[15] = 0x00;	// reserved
+
+		callback(reply_message, sizeof(reply_message));
+	}
+
+	// function block discovery request
+	if(status == 0x10)
+	{
+		uint8_t function_block = pmessage[1];
+		uint8_t filter = pmessage[0];
+
+		if((function_block == 0xFF) || (function_block == 0))
+		{
+			// info notification
+			if(filter & 0x01)
+			{
+				reply_message[0] = 0x33;	// bidirectional, sender & receiver
+				reply_message[1] = 0x90;	// active functional block 0
+				reply_message[2] = 0x11;	// status
+				reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+				reply_message[4] = 0x01;	// sysex8 streams
+				reply_message[5] = 0x01;	// format version
+				reply_message[6] = 0x01;	// groups spanned
+				reply_message[7] = 0x00;	// first group
+				reply_message[8] = 0x00;	// reserved
+				reply_message[9] = 0x00;	// reserved
+				reply_message[10] = 0x00;	// reserved
+				reply_message[11] = 0x00;	// reserved
+				reply_message[12] = 0x00;	// reserved
+				reply_message[13] = 0x00;	// reserved
+				reply_message[14] = 0x00;	// reserved
+				reply_message[15] = 0x00;	// reserved
+
+				callback(reply_message, sizeof(reply_message));
+			}
+
+			if(filter & 0x02)
+			{
+				int32_t packet_count = strlen(FUNCTION_BLOCK_1_NAME) / 13;
+				int32_t string_index = 0;
+
+				if(strlen(FUNCTION_BLOCK_1_NAME) % 13) {
+					packet_count++;
+				}
+
+				for(int32_t i=0; i<packet_count; i++)
+				{
+					reply_message[0] = function_block_name_byte(string_index + 0);
+					reply_message[1] = 0x00;	// functional block 0
+					reply_message[2] = 0x12;	// status
+					reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+					reply_message[4] = function_block_name_byte(string_index + 4);
+					reply_message[5] = function_block_name_byte(string_index + 3);
+					reply_message[6] = function_block_name_byte(string_index + 2);
+					reply_message[7] = function_block_name_byte(string_index + 1);
+					reply_message[8] = function_block_name_byte(string_index + 8);
+					reply_message[9] = function_block_name_byte(string_index + 7);
+					reply_message[10] = function_block_name_byte(string_index + 6);
+					reply_message[11] = function_block_name_byte(string_index + 5);
+					reply_message[12] = function_block_name_byte(string_index + 12);
+					reply_message[13] = function_block_name_byte(string_index + 11);
+					reply_message[14] = function_block_name_byte(string_index + 10);
+					reply_message[15] = function_block_name_byte(string_index + 9);
+
+					if(packet_count > 1)
+					{
+						if(i == 0) {
+							reply_message[3] |= MIDI20_STREAM_STATUS_START;
+						}
+						else if(i == packet_count - 1) {
+							reply_message[3] |= MIDI20_STREAM_STATUS_STOP;
+						}
+						else {
+							reply_message[3] |= MIDI20_STREAM_STATUS_CONTINUE;
+						}
+					}
+
+					callback(reply_message, sizeof(reply_message));
+
+					string_index += 13;
+				}
+			}
+		}
+	}
 }

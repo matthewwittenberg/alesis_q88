@@ -170,7 +170,6 @@ typedef struct
 {
 	KEYBOARD_PRESS_STATUS_T status;
 	uint32_t detect_tick;
-	uint16_t velocity;
 } KEYBOARD_KEY_STATUS_T;
 
 static KEYBOARD_KEY_STATUS_T _keyboard_status[KEYBOARD_TOTAL_KEYS];

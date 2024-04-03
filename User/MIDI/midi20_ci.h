@@ -14,5 +14,6 @@ typedef void (*ci_process_callback)(uint8_t *pmessage, uint32_t length);
 
 void midi20_ci_init();
 void midi20_ci_process(uint8_t *pmessage, uint32_t length, ci_process_callback callback);
+void midi20_stream_process(uint16_t status, uint8_t *pmessage, uint32_t length, ci_process_callback callback);
 
 #endif
