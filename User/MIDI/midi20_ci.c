@@ -269,7 +269,7 @@ void midi20_ci_process_inquiry_endpoint(uint8_t *pmessage, uint32_t length)
     midi20_ci_build_header(&prequest->header, &reply.header, MIDI20_UNIVERSAL_SYSEX_SUBID2_INQUIRY_ENDPOINT_REPLY);
     reply.status = 0;
     uint16_to_bytes(16, reply.length);
-    strcpy(reply.product_id, PRODUCT_NAME);
+    strncpy(reply.product_id, PRODUCT_NAME, 15);
     reply.sysex_end = MIDI_SYSEX_END;
 
     if(_process_callback)
@@ -298,7 +298,7 @@ void midi20_ci_nak2(uint8_t *pmessage, uint32_t length, uint8_t status_code, con
     reply.original_sub_id2 = pheader->sub_id2;
     reply.nak_code = status_code;
     uint16_to_bytes(32, reply.length);
-    strcpy(reply.message, ptext);
+    strncpy(reply.message, ptext, 31);
 
     if(_process_callback)
         _process_callback((uint8_t*)&reply, sizeof(reply));
@@ -314,7 +314,7 @@ void midi20_ci_ack(uint8_t *pmessage, uint32_t length, uint8_t status_code, cons
     reply.original_sub_id2 = pheader->sub_id2;
     reply.ack_code = status_code;
     uint16_to_bytes(32, reply.length);
-    strcpy(reply.message, ptext);
+    strncpy(reply.message, ptext, 31);
 
     if(_process_callback)
         _process_callback((uint8_t*)&reply, sizeof(reply));
@@ -798,10 +798,10 @@ void midi20_stream_process(uint16_t status, uint8_t *pmessage, uint32_t length, 
 			if(filter & 0x01)
 			{
 				reply_message[0] = 0x33;	// bidirectional, sender & receiver
-				reply_message[1] = 0x90;	// active functional block 0
+				reply_message[1] = 0x80;	// active functional block 0
 				reply_message[2] = 0x11;	// status
 				reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
-				reply_message[4] = 0x01;	// sysex8 streams
+				reply_message[4] = 0x00;	// sysex8 streams
 				reply_message[5] = 0x01;	// format version
 				reply_message[6] = 0x01;	// groups spanned
 				reply_message[7] = 0x00;	// first group

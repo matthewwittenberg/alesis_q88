@@ -71,7 +71,7 @@ void midi_ci_process_handler(uint8_t *pmessage, uint32_t length)
         		break;
         	}
         }
-        message[2] |= ((j+1) & 0x0F);
+        message[2] |= (j & 0x0F);
 
         midi_usb_driver_tx(message, sizeof(message));
     }
