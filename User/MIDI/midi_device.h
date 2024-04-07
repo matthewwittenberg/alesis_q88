@@ -19,6 +19,7 @@ typedef struct
     void (*aftertouch)(uint8_t note, uint8_t channel, uint16_t data);
     void (*channel_pressure)(uint8_t channel, uint16_t data);
     void (*pitch_wheel)(uint8_t channel, int32_t pitch);
+    void (*controller)(uint8_t index, uint8_t channel, uint32_t value);
     void (*modulation_wheel)(uint8_t channel, uint16_t modulation);
     void (*volume)(uint8_t channel, uint16_t volume);
     void (*sense)();

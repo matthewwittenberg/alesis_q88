@@ -11,7 +11,7 @@
 
 #define MIDI_UART UART1
 
-#define MIDI_SERIAL_TX_QUEUE_DEPTH 64
+#define MIDI_SERIAL_TX_QUEUE_DEPTH 128
 
 uint8_t _midi_serial_tx_queue[MIDI_SERIAL_TX_QUEUE_DEPTH];
 uint32_t _midi_serial_tx_queue_head = 0;

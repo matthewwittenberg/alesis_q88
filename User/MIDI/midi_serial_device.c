@@ -62,38 +62,30 @@ void midi_serial_pitch_wheel(uint8_t channel, int32_t pitch)
 	midi_serial_driver_tx(message, sizeof(message));
 }
 
-void midi_serial_modulation_wheel(uint8_t channel, uint16_t modulation)
+void midi_serial_controller(uint8_t index, uint8_t channel, uint32_t value)
 {
 	uint8_t message[3];
 
+	message[0] = MIDI_CONTROLLER | channel;
+	message[1] = index;
+	message[2] = value;
+	midi_serial_driver_tx(message, sizeof(message));
+}
+
+void midi_serial_modulation_wheel(uint8_t channel, uint16_t modulation)
+{
 	modulation = modulation & 0x3FFF;
 
-	message[0] = MIDI_CONTROLLER | channel;
-	message[1] = MIDI_CONT_MOD_WHEEL_FINE;
-	message[2] = modulation & 0x7F;
-	midi_serial_driver_tx(message, sizeof(message));
-
-	message[0] = MIDI_CONTROLLER | channel;
-	message[1] = MIDI_CONT_MOD_WHEEL_COARSE;
-	message[2] = (modulation >> 7) & 0x7F;
-	midi_serial_driver_tx(message, sizeof(message));
+	midi_serial_controller(MIDI_CONT_MOD_WHEEL_FINE, channel, modulation & 0x7F);
+	midi_serial_controller(MIDI_CONT_MOD_WHEEL_COARSE, channel, (modulation >> 7) & 0x7F);
 }
 
 void midi_serial_volume(uint8_t channel, uint16_t volume)
 {
-	uint8_t message[3];
-
 	volume = volume & 0x3FFF;
 
-	message[0] = MIDI_CONTROLLER | channel;
-	message[1] = MIDI_CONT_VOLUME_FINE;
-	message[2] = volume & 0x7F;
-	midi_serial_driver_tx(message, sizeof(message));
-
-	message[0] = MIDI_CONTROLLER | channel;
-	message[1] = MIDI_CONT_VOLUME_COARSE;
-	message[2] = (volume >> 7) & 0x7F;
-	midi_serial_driver_tx(message, sizeof(message));
+	midi_serial_controller(MIDI_CONT_VOLUME_FINE, channel, volume & 0x7F);
+	midi_serial_controller(MIDI_CONT_VOLUME_COARSE, channel, (volume >> 7) & 0x7F);
 }
 
 void midi_serial_sense()
@@ -105,11 +97,7 @@ void midi_serial_sense()
 
 void midi_serial_sustain(uint8_t channel, bool on)
 {
-	uint8_t message[3];
-	message[0] = MIDI_CONTROLLER | channel;
-	message[1] = MIDI_CONT_HOLD_PEDAL;
-	message[2] = on ? 0x7F : 0;
-	midi_serial_driver_tx(message, sizeof(message));
+	midi_serial_controller(MIDI_CONT_HOLD_PEDAL, channel, on ? 0x7F : 0);
 }
 
 void midi_serial_program_change(uint8_t channel, uint8_t program)

@@ -138,13 +138,16 @@ void midi_usb_task()
 
 				message_length -= 4;
 
-				// read the rest of the packet
-				if(message_length != midi_usb_driver_rx(&message[4], message_length))
+				if(message_length)
 				{
-					// reset driver rx
-					midi_usb_flush_rx();
-					message_index = 0;
-					break;
+					// read the rest of the packet
+					if(message_length != midi_usb_driver_rx(&message[4], message_length))
+					{
+						// reset driver rx
+						midi_usb_flush_rx();
+						message_index = 0;
+						break;
+					}
 				}
 
 				// sysex?
@@ -319,6 +322,36 @@ void midi_usb_pitch_wheel(uint8_t channel, int32_t pitch)
 		pitch = (pitch + 8192) & 0x3FFF;
 		uint32_t pitch_new = (pitch & 0x7F) | ((pitch << 1) & 0x7F00);
 		uint32_t message = CIN_PITCH_BEND | ((MIDI_PITCH_WHEEL | channel) << 8) | (pitch_new << 16);
+		midi_usb_driver_tx((uint8_t*)&message, 4);
+	}
+}
+
+void midi_usb_controller(uint8_t index, uint8_t channel, uint32_t value)
+{
+	if(IS_MIDI_2_0)
+	{
+#ifdef USE_VOICE_10_MESSAGE
+		uint8_t message[4];
+		message[3] = MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE;
+		message[2] = MIDI_CONTROLLER | channel;
+		message[1] = index;
+		message[0] = value;
+#else
+		uint8_t message[8];
+		message[3] = MIDI20_MESSAGE_TYPE_20_CHANNEL_VOICE;
+		message[2] = MIDI_CONTROLLER | channel;
+		message[1] = index;
+		message[0] = 0;
+		message[7] = value >> 24;
+		message[6] = value >> 16;
+		message[5] = value >> 8;
+		message[4] = value;
+#endif
+		midi_usb_driver_tx(message, sizeof(message));
+	}
+	else
+	{
+		uint32_t message = CIN_CONTROL_CHANGE | ((MIDI_CONTROLLER | channel) << 8) | (index << 16) | (value << 24);
 		midi_usb_driver_tx((uint8_t*)&message, 4);
 	}
 }
