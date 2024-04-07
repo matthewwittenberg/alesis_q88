@@ -1,7 +1,7 @@
 # Alesis Q88 MKII
 Reverse Engineer MIDI 2.0 Project
 ## About
-Project to reverse engineer a full 88 key MIDI controller and make MIDI 2.0 compatible. Chose the [Alesis Q88 MKII](https://www.alesis.com/products/view2/q88-mkii) as it is relatively cheap for a full keyboard.
+Project to reverse engineer a full 88 key MIDI controller and make MIDI 2.0 compatible. Chose the [Alesis Q88 MKII](https://www.alesis.com/products/view2/q88-mkii) as it is relatively cheap for a full keyboard. At this time, this is a fairly functional MIDI 1.0 & 2.0 device.
 ## Tools
 (only built on Windows thus far)
 1. [NuEclipse](https://www.nuvoton.com/tool-and-software/ide-and-compiler/)
@@ -37,6 +37,7 @@ Project to reverse engineer a full 88 key MIDI controller and make MIDI 2.0 comp
 2. Add commenting.
 3. Expression pedal.
 4. Directional/transport button support (buttons work but not handled).
+5. Test MIDI CI.
 ## Code
 1. keyboard.c owns the keyboard task, it scans and processes key presses.
 2. Went with a super loop instead of an OS due to processor resource constraints.
