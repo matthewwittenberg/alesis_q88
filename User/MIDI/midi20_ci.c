@@ -13,6 +13,7 @@ extern const uint32_t PRODUCT_SOFTWARE_VERSION;
 extern const char* PRODUCT_NAME;
 extern const char* PRODUCT_INSTANCE_ID;
 extern const char* FUNCTION_BLOCK_1_NAME;
+extern const char* FUNCTION_BLOCK_2_NAME;
 
 #define CI_MAX_SYSEX_SIZE 128
 
@@ -572,10 +573,17 @@ uint8_t product_instance_id_byte(uint8_t index)
 	return 0;
 }
 
-uint8_t function_block_name_byte(uint8_t index)
+uint8_t function_block_name_byte(uint8_t index, uint8_t block)
 {
-	if(index < strlen(FUNCTION_BLOCK_1_NAME)) {
-		return FUNCTION_BLOCK_1_NAME[index];
+	if(block == 0) {
+		if(index < strlen(FUNCTION_BLOCK_1_NAME)) {
+			return FUNCTION_BLOCK_1_NAME[index];
+		}
+	}
+	else if(block == 1) {
+		if(index < strlen(FUNCTION_BLOCK_2_NAME)) {
+			return FUNCTION_BLOCK_2_NAME[index];
+		}
 	}
 
 	return 0;
@@ -605,7 +613,7 @@ void midi20_stream_process(uint16_t status, uint8_t *pmessage, uint32_t length, 
 			reply_message[4] = 0x00;	// no jr timestamps
 			reply_message[5] = 0x03;	// we support midi 2.0
 			reply_message[6] = 0x00;	// reserved
-			reply_message[7] = 0x81;	// static, 1 function block
+			reply_message[7] = 0x82;	// static, 2 function blocks
 			reply_message[8] = 0x00;	// reserved
 			reply_message[9] = 0x00;	// reserved
 			reply_message[10] = 0x00;	// reserved
@@ -792,16 +800,17 @@ void midi20_stream_process(uint16_t status, uint8_t *pmessage, uint32_t length, 
 		uint8_t function_block = pmessage[1];
 		uint8_t filter = pmessage[0];
 
+		// keyboard block
 		if((function_block == 0xFF) || (function_block == 0))
 		{
 			// info notification
 			if(filter & 0x01)
 			{
-				reply_message[0] = 0x33;	// bidirectional, sender & receiver
+				reply_message[0] = 0x33;	// bidirectional, ui sender & receiver, not midi 1.0
 				reply_message[1] = 0x80;	// active functional block 0
 				reply_message[2] = 0x11;	// status
 				reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
-				reply_message[4] = 0x00;	// sysex8 streams
+				reply_message[4] = 0x00;	// no sysex8 streams
 				reply_message[5] = 0x01;	// format version
 				reply_message[6] = 0x01;	// groups spanned
 				reply_message[7] = 0x00;	// first group
@@ -828,22 +837,96 @@ void midi20_stream_process(uint16_t status, uint8_t *pmessage, uint32_t length, 
 
 				for(int32_t i=0; i<packet_count; i++)
 				{
-					reply_message[0] = function_block_name_byte(string_index + 0);
+					reply_message[0] = function_block_name_byte(string_index + 0, 0);
 					reply_message[1] = 0x00;	// functional block 0
 					reply_message[2] = 0x12;	// status
 					reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
-					reply_message[4] = function_block_name_byte(string_index + 4);
-					reply_message[5] = function_block_name_byte(string_index + 3);
-					reply_message[6] = function_block_name_byte(string_index + 2);
-					reply_message[7] = function_block_name_byte(string_index + 1);
-					reply_message[8] = function_block_name_byte(string_index + 8);
-					reply_message[9] = function_block_name_byte(string_index + 7);
-					reply_message[10] = function_block_name_byte(string_index + 6);
-					reply_message[11] = function_block_name_byte(string_index + 5);
-					reply_message[12] = function_block_name_byte(string_index + 12);
-					reply_message[13] = function_block_name_byte(string_index + 11);
-					reply_message[14] = function_block_name_byte(string_index + 10);
-					reply_message[15] = function_block_name_byte(string_index + 9);
+					reply_message[4] = function_block_name_byte(string_index + 4, 0);
+					reply_message[5] = function_block_name_byte(string_index + 3, 0);
+					reply_message[6] = function_block_name_byte(string_index + 2, 0);
+					reply_message[7] = function_block_name_byte(string_index + 1, 0);
+					reply_message[8] = function_block_name_byte(string_index + 8, 0);
+					reply_message[9] = function_block_name_byte(string_index + 7, 0);
+					reply_message[10] = function_block_name_byte(string_index + 6, 0);
+					reply_message[11] = function_block_name_byte(string_index + 5, 0);
+					reply_message[12] = function_block_name_byte(string_index + 12, 0);
+					reply_message[13] = function_block_name_byte(string_index + 11, 0);
+					reply_message[14] = function_block_name_byte(string_index + 10, 0);
+					reply_message[15] = function_block_name_byte(string_index + 9, 0);
+
+					if(packet_count > 1)
+					{
+						if(i == 0) {
+							reply_message[3] |= MIDI20_STREAM_STATUS_START;
+						}
+						else if(i == packet_count - 1) {
+							reply_message[3] |= MIDI20_STREAM_STATUS_STOP;
+						}
+						else {
+							reply_message[3] |= MIDI20_STREAM_STATUS_CONTINUE;
+						}
+					}
+
+					callback(reply_message, sizeof(reply_message));
+
+					string_index += 13;
+				}
+			}
+		}
+
+		// output port block
+		if((function_block == 0xFF) || (function_block == 1))
+		{
+			// info notification
+			if(filter & 0x01)
+			{
+				reply_message[0] = 0x2A;	// tx only, ui sender, midi 1.0 restricted bandwidth
+				reply_message[1] = 0x81;	// active functional block 1
+				reply_message[2] = 0x11;	// status
+				reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+				reply_message[4] = 0x00;	// no sysex8 streams
+				reply_message[5] = 0x01;	// format version
+				reply_message[6] = 0x01;	// groups spanned
+				reply_message[7] = 0x01;	// first group
+				reply_message[8] = 0x00;	// reserved
+				reply_message[9] = 0x00;	// reserved
+				reply_message[10] = 0x00;	// reserved
+				reply_message[11] = 0x00;	// reserved
+				reply_message[12] = 0x00;	// reserved
+				reply_message[13] = 0x00;	// reserved
+				reply_message[14] = 0x00;	// reserved
+				reply_message[15] = 0x00;	// reserved
+
+				callback(reply_message, sizeof(reply_message));
+			}
+
+			if(filter & 0x02)
+			{
+				int32_t packet_count = strlen(FUNCTION_BLOCK_2_NAME) / 13;
+				int32_t string_index = 0;
+
+				if(strlen(FUNCTION_BLOCK_2_NAME) % 13) {
+					packet_count++;
+				}
+
+				for(int32_t i=0; i<packet_count; i++)
+				{
+					reply_message[0] = function_block_name_byte(string_index + 0, 1);
+					reply_message[1] = 0x01;	// functional block 1
+					reply_message[2] = 0x12;	// status
+					reply_message[3] = MIDI20_MESSAGE_TYPE_STREAM;
+					reply_message[4] = function_block_name_byte(string_index + 4, 1);
+					reply_message[5] = function_block_name_byte(string_index + 3, 1);
+					reply_message[6] = function_block_name_byte(string_index + 2, 1);
+					reply_message[7] = function_block_name_byte(string_index + 1, 1);
+					reply_message[8] = function_block_name_byte(string_index + 8, 1);
+					reply_message[9] = function_block_name_byte(string_index + 7, 1);
+					reply_message[10] = function_block_name_byte(string_index + 6, 1);
+					reply_message[11] = function_block_name_byte(string_index + 5, 1);
+					reply_message[12] = function_block_name_byte(string_index + 12, 1);
+					reply_message[13] = function_block_name_byte(string_index + 11, 1);
+					reply_message[14] = function_block_name_byte(string_index + 10, 1);
+					reply_message[15] = function_block_name_byte(string_index + 9, 1);
 
 					if(packet_count > 1)
 					{

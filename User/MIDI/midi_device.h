@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "midi_spec.h"
 
 typedef enum
 {
@@ -15,6 +16,8 @@ typedef struct
     void (*init)();
     void (*note_on)(uint8_t note, uint8_t channel, uint16_t velocity);
     void (*note_off)(uint8_t note, uint8_t channel, uint16_t velocity);
+    void (*aftertouch)(uint8_t note, uint8_t channel, uint16_t data);
+    void (*channel_pressure)(uint8_t channel, uint16_t data);
     void (*pitch_wheel)(uint8_t channel, int32_t pitch);
     void (*modulation_wheel)(uint8_t channel, uint16_t modulation);
     void (*volume)(uint8_t channel, uint16_t volume);
@@ -22,6 +25,7 @@ typedef struct
     void (*sustain)(uint8_t channel, bool on);
     void (*program_change)(uint8_t channel, uint8_t program);
     void (*task)();
+    void (*register_callback)(message_callback callback);
     MIDI_VERSION_T version;
 } MIDI_DEVICE_T;
 

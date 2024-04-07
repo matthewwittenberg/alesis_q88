@@ -492,10 +492,40 @@ void sense_task()
 #endif
 }
 
+void usb_device_message_handler(uint8_t group, uint8_t status, uint8_t byte_2, uint8_t byte_3)
+{
+	if(group != 1) {
+		return;
+	}
+
+	if((status & 0xF0) == MIDI_NOTE_OFF){
+		MIDI_SERIAL_DEVICE.note_off(byte_2, status & 0x0F, byte_3);
+	}
+	else if((status & 0xF0) == MIDI_NOTE_ON){
+		MIDI_SERIAL_DEVICE.note_on(byte_2, status & 0x0F, byte_3);
+	}
+	else if((status & 0xF0) == MIDI_AFTERTOUCH){
+		MIDI_SERIAL_DEVICE.aftertouch(byte_2, status & 0x0F, byte_3);
+	}
+	else if((status & 0xF0) == MIDI_CONTROLLER){
+		MIDI_SERIAL_DEVICE.aftertouch(byte_2, status & 0x0F, byte_3);
+	}
+	else if((status & 0xF0) == MIDI_PROGRAM_CHANGE){
+		MIDI_SERIAL_DEVICE.program_change(status & 0x0F, byte_2);
+	}
+	else if((status & 0xF0) == MIDI_CHANNEL_PRESSURE){
+		MIDI_SERIAL_DEVICE.channel_pressure(status & 0x0F, byte_2);
+	}
+	else if((status & 0xF0) == MIDI_PITCH_WHEEL){
+		MIDI_SERIAL_DEVICE.pitch_wheel(status & 0x0F, byte_2 | (byte_3 << 7));
+	}
+}
+
 void main_app()
 {
 	keyboard_register_callback(keyboard_event_handler);
 	keypad_register_callback(keypad_event_handler);
+	MIDI_USB_DEVICE.register_callback(usb_device_message_handler);
 
 	// 2 blinks
 	for(uint32_t i=0; i<2; i++)

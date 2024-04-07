@@ -17,6 +17,7 @@
 
 uint8_t _midi20_buffer[MIDI20_BUFFER_LENGTH];
 uint32_t _midi20_buffer_index = 0;
+message_callback _message_callback = NULL;
 
 void midi_usb_init()
 {
@@ -202,6 +203,13 @@ void midi_usb_task()
 						_midi20_buffer_index = 0;
 					}
 				}
+				// 10 voice
+				else if(message_type == MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE)
+				{
+					if(_message_callback) {
+						_message_callback(message[3] & 0x0F, message[2], message[1], message[0]);
+					}
+				}
 
 				message_index = 0;
 			}
@@ -267,6 +275,16 @@ void midi_usb_note_off(uint8_t note, uint8_t channel, uint16_t velocity)
 		uint32_t message = CIN_NOTE_OFF | ((MIDI_NOTE_OFF | channel) << 8) | (note << 16) | (velocity << 24);
 		midi_usb_driver_tx((uint8_t*)&message, 4);
 	}
+}
+
+void midi_usb_aftertouch(uint8_t note, uint8_t channel, uint16_t data)
+{
+	// keyboard does not support
+}
+
+void midi_usb_channel_pressure(uint8_t channel, uint16_t data)
+{
+	// keyboard does not support
 }
 
 void midi_usb_pitch_wheel(uint8_t channel, int32_t pitch)
@@ -489,5 +507,8 @@ void midi_usb_program_change(uint8_t channel, uint8_t program)
 	}
 }
 
-
+void midi_usb_register_callback(message_callback callback)
+{
+	_message_callback = callback;
+}
 

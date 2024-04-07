@@ -34,6 +34,23 @@ void midi_serial_note_off(uint8_t note, uint8_t channel, uint16_t velocity)
 	midi_serial_driver_tx(message, sizeof(message));
 }
 
+void midi_serial_aftertouch(uint8_t note, uint8_t channel, uint16_t data)
+{
+	uint8_t message[3];
+	message[0] = MIDI_AFTERTOUCH | channel;
+	message[1] = note;
+	message[2] = data;
+	midi_serial_driver_tx(message, sizeof(message));
+}
+
+void midi_serial_channel_pressure(uint8_t channel, uint16_t data)
+{
+	uint8_t message[2];
+	message[0] = MIDI_CHANNEL_PRESSURE | channel;
+	message[1] = data;
+	midi_serial_driver_tx(message, sizeof(message));
+}
+
 void midi_serial_pitch_wheel(uint8_t channel, int32_t pitch)
 {
 	pitch = (pitch + 8192) & 0x3FFF;
@@ -104,5 +121,9 @@ void midi_serial_program_change(uint8_t channel, uint8_t program)
 }
 
 void midi_serial_task()
+{
+}
+
+void midi_serial_register_callback(message_callback callback)
 {
 }

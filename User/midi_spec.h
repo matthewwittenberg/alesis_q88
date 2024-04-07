@@ -8,6 +8,8 @@
 #ifndef MIDI_SPEC_H_
 #define MIDI_SPEC_H_
 
+#include <stdint.h>
+
 #define TOTAL_CABLES 16
 #define TOTAL_CHANNELS 16
 
@@ -196,5 +198,7 @@
 #define MIDI_CONT_ONMI_MODE_ON 125
 #define MIDI_CONT_MONO_MODE_ON 126
 #define MIDI_CONT_POLY_MODE_ON 127
+
+typedef void (*message_callback)(uint8_t group, uint8_t status, uint8_t byte_2, uint8_t byte_3);
 
 #endif /* MIDI_SPEC_H_ */
