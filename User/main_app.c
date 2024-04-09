@@ -517,7 +517,7 @@ void usb_device_message_handler(uint8_t group, uint8_t status, uint8_t byte_2, u
 		MIDI_SERIAL_DEVICE.channel_pressure(status & 0x0F, byte_2);
 	}
 	else if((status & 0xF0) == MIDI_PITCH_WHEEL){
-		int32_t pitch = byte_3 | (byte_2 << 7);
+		int32_t pitch = byte_2 | (byte_3 << 7);
 		pitch -= 8192;
 		MIDI_SERIAL_DEVICE.pitch_wheel(status & 0x0F, pitch);
 	}
