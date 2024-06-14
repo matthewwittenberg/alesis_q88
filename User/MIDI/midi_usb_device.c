@@ -26,21 +26,22 @@ void midi_usb_init()
 
 void midi_ci_process_handler(uint8_t *pmessage, uint32_t length)
 {
-    uint32_t index = 0;
+    uint8_t cable_group = 0;
+    uint32_t index = 1;
     uint8_t message[8];
-    uint32_t total_messages = length / 6;
+    uint32_t total_messages = (length - 2) / 6; // leave out the sysex start & end bytes
     uint32_t i, j;
 
-    if(length % 6) {
+    if((length - 2) % 6) {
         total_messages++;
     }
 
     // build usb packet chunks to send
     for(i=0; i<total_messages; i++)
     {
-    	memset(message, 0, sizeof(message));
+        memset(message, 0, sizeof(message));
 
-        message[3] = MIDI20_MESSAGE_TYPE_DATA64;
+        message[3] = MIDI20_MESSAGE_TYPE_DATA64 | cable_group;
 
         if(total_messages == 1)
         {
@@ -61,16 +62,31 @@ void midi_ci_process_handler(uint8_t *pmessage, uint32_t length)
 
         for(j=0; j<6; j++)
         {
-        	if(j<2) {
-        		message[j] = pmessage[index++];
-        	}
-        	else {
-        		message[j+2] = pmessage[index++];
-        	}
+            if(index >= (length-1)) {
+                break;
+            }
 
-        	if(index >= length) {
-        		break;
-        	}
+            switch(j)
+            {
+                case 0:
+                    message[1] = pmessage[index++];
+                    break;
+                case 1:
+                    message[0] = pmessage[index++];
+                    break;
+                case 2:
+                    message[7] = pmessage[index++];
+                    break;
+                case 3:
+                    message[6] = pmessage[index++];
+                    break;
+                case 4:
+                    message[5] = pmessage[index++];
+                    break;
+                case 5:
+                    message[4] = pmessage[index++];
+                    break;
+            }
         }
         message[2] |= (j & 0x0F);
 
@@ -156,22 +172,43 @@ void midi_usb_task()
 					uint8_t status = message[2] & 0xF0;
 					uint8_t byte_count = message[2] & 0x0F;
 
+					// add the sysex start byte
+					if((status == MIDI20_SYSEX_STATUS_COMPLETE_IN_1) || (status == MIDI20_SYSEX_STATUS_START)) {
+						_midi20_buffer_index = 0;
+						_midi20_buffer[_midi20_buffer_index++] = MIDI_SYSEX_START;
+					}
+
 					if(byte_count > 6) {
 						byte_count = 6;
 					}
 
-					for(uint8_t i=0; i<byte_count; i++)
-					{
-						if(i < 2) {
-							_midi20_buffer[_midi20_buffer_index] = message[i];
-						}
-						else {
-							_midi20_buffer[_midi20_buffer_index] = message[i+2];
-						}
-						_midi20_buffer_index++;
-						if(_midi20_buffer_index >= MIDI20_BUFFER_LENGTH) {
-							_midi20_buffer_index = 0;
-						}
+					if(byte_count > 0) {
+						_midi20_buffer[_midi20_buffer_index++] = message[1];
+					}
+					if(byte_count > 1) {
+						_midi20_buffer[_midi20_buffer_index++] = message[0];
+					}
+					if(byte_count > 2) {
+						_midi20_buffer[_midi20_buffer_index++] = message[7];
+					}
+					if(byte_count > 3) {
+						_midi20_buffer[_midi20_buffer_index++] = message[6];
+					}
+					if(byte_count > 4) {
+						_midi20_buffer[_midi20_buffer_index++] = message[5];
+					}
+					if(byte_count > 5) {
+						_midi20_buffer[_midi20_buffer_index++] = message[4];
+					}
+
+					// add the sysex end byte
+					if((status == MIDI20_SYSEX_STATUS_COMPLETE_IN_1) || (status == MIDI20_SYSEX_STATUS_STOP)) {
+						_midi20_buffer[_midi20_buffer_index++] = MIDI_SYSEX_END;
+					}
+
+					// bounds check
+					if(_midi20_buffer_index >= MIDI20_BUFFER_LENGTH) {
+						_midi20_buffer_index = 0;
 					}
 
 					if((status == MIDI20_SYSEX_STATUS_COMPLETE_IN_1) || (status == MIDI20_SYSEX_STATUS_STOP))
@@ -186,19 +223,20 @@ void midi_usb_task()
 					uint16_t status = message[2] | ((message[3] & 0x0C) << 8);
 					uint8_t format = message[3] & 0x0C;
 
-					for(uint8_t i=0; i<14; i++)
-					{
-						if(i < 2) {
-							_midi20_buffer[_midi20_buffer_index] = message[i];
-						}
-						else {
-							_midi20_buffer[_midi20_buffer_index] = message[i+2];
-						}
-						_midi20_buffer_index++;
-						if(_midi20_buffer_index >= MIDI20_BUFFER_LENGTH) {
-							_midi20_buffer_index = 0;
-						}
-					}
+					_midi20_buffer[_midi20_buffer_index++] = message[0];
+					_midi20_buffer[_midi20_buffer_index++] = message[1];
+					_midi20_buffer[_midi20_buffer_index++] = message[4];
+					_midi20_buffer[_midi20_buffer_index++] = message[5];
+					_midi20_buffer[_midi20_buffer_index++] = message[6];
+					_midi20_buffer[_midi20_buffer_index++] = message[7];
+					_midi20_buffer[_midi20_buffer_index++] = message[8];
+					_midi20_buffer[_midi20_buffer_index++] = message[9];
+					_midi20_buffer[_midi20_buffer_index++] = message[10];
+					_midi20_buffer[_midi20_buffer_index++] = message[11];
+					_midi20_buffer[_midi20_buffer_index++] = message[12];
+					_midi20_buffer[_midi20_buffer_index++] = message[13];
+					_midi20_buffer[_midi20_buffer_index++] = message[14];
+					_midi20_buffer[_midi20_buffer_index++] = message[15];
 
 					if((format == MIDI20_STREAM_STATUS_COMPLETE_IN_1) || (format == MIDI20_STREAM_STATUS_STOP))
 					{
