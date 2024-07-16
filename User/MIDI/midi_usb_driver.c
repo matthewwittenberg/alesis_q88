@@ -183,7 +183,7 @@ typedef struct
 } USBD_SETUP_PACKET_T;
 #pragma pack(pop)
 
-extern const uint8_t USBD_MIDI20_TERM_BLOCK_DESC[18];
+extern uint8_t USBD_MIDI20_TERM_BLOCK_DESC[31];
 
 void midi_usb_class_request()
 {

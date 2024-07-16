@@ -23,11 +23,11 @@ MIDI20_CI_RESULT_T midi20_ci_get_prop_manufacturer(
     if(strnstr(pheader_data, "ResourceList", header_data_length) != NULL)
     {
         strcpy(pproperty_data,
-            "[{\"resource\":\"DeviceInfo\"}," \
-            "{\"resource\":\"ChannelList\"}," \
-            "{\"resource\":\"CMList\"}]");
+            "[{\"resource\":\"DeviceInfo\"}]");
         *pproperty_data_length = strlen(pproperty_data);
         *ptotal_chunks = 1;
+
+        return MIDI20_CI_RESULT_SUCCESS;
     }
     else if(strnstr(pheader_data, "DeviceInfo", header_data_length) != NULL)
     {
@@ -35,50 +35,18 @@ MIDI20_CI_RESULT_T midi20_ci_get_prop_manufacturer(
             "{\"manufacturerId\":[15,0,0]," \
             "\"manufacturer\":\"ALESIS\"," \
             "\"familyId\":[0,0]," \
-            "\"family\":\"\"," \
+            "\"family\":\"keyboard\"," \
             "\"modelId\":[0,0]," \
-            "\"model\":\"Q88\"," \
+            "\"model\":\"Q88 MKII\"," \
             "\"versionId\":[0,0,1,0]," \
             "\"version\":\"1.0\"}");
         *pproperty_data_length = strlen(pproperty_data);
         *ptotal_chunks = 1;
-    }
-    else if(strnstr(pheader_data, "ChannelList", header_data_length) != NULL)
-    {
-        strcpy(pproperty_data,
-            "[{\"title\":\"keys\"," \
-            "\"channel\":1," \
-            "\"familyId\":\"\"," \
-            "\"links\":[{\"resource\":\"CMList\",\"resId\":\"all\"}]}]");
-        *pproperty_data_length = strlen(pproperty_data);
-        *ptotal_chunks = 1;
-    }
-    else if(strnstr(pheader_data, "CMList", header_data_length) != NULL)
-    {
-        if(chunk == 0)
-        {
-            strcpy(pproperty_data,
-                "[{\"name\":\"Octave\"," \
-                "\"priority\":1," \
-                "\"controlType\":\"cc\"," \
-                "\"controlIdx\":[80]," \
-                "\"default\":10},");
-        }
-        else
-        {
-            strcpy(pproperty_data,
-                "{\"name\":\"Transpose\"," \
-                "\"priority\":1," \
-                "\"controlType\":\"cc\"," \
-                "\"controlIdx\":[81]," \
-                "\"default\":53}]");
-        }
 
-        *pproperty_data_length = strlen(pproperty_data);
-        *ptotal_chunks = 2;
+        return MIDI20_CI_RESULT_SUCCESS;
     }
 
-    return MIDI20_CI_RESULT_SUCCESS;
+    return MIDI20_CI_RESULT_UNKNOWN_PROPERTY;
 }
 
 

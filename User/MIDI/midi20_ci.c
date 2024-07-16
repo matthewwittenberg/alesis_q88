@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "midi_spec.h"
+#include "sys_timer.h"
 
 extern const uint8_t MAN_ID_HI;
 extern const uint8_t MAN_ID_MD;
@@ -15,7 +16,8 @@ extern const char* PRODUCT_INSTANCE_ID;
 extern const char* FUNCTION_BLOCK_1_NAME;
 extern const char* FUNCTION_BLOCK_2_NAME;
 
-#define CI_MAX_SYSEX_SIZE 128
+#define CI_MAX_HEADER_SIZE 128
+#define CI_MAX_PROPERTY_SIZE 512
 
 #pragma pack(push, 1)
 typedef struct
@@ -39,33 +41,9 @@ typedef struct
     uint8_t software_revision[4];
     uint8_t capability_category;
     uint8_t max_sysex_size[4];
-    uint8_t sysex_end;
-} MIDI_CI_DISCOVERY_REQUEST_VERSION_1_T;
-
-typedef struct
-{
-    MIDI_CI_HEADER_T header;
-    uint8_t manufacturer[3];
-    uint8_t family[2];
-    uint8_t family_model[2];
-    uint8_t software_revision[4];
-    uint8_t capability_category;
-    uint8_t max_sysex_size[4];
     uint8_t output_path_id;
     uint8_t sysex_end;
 } MIDI_CI_DISCOVERY_REQUEST_VERSION_2_T;
-
-typedef struct
-{
-    MIDI_CI_HEADER_T header;
-    uint8_t manufacturer[3];
-    uint8_t family[2];
-    uint8_t family_model[2];
-    uint8_t software_revision[4];
-    uint8_t capability_category;
-    uint8_t max_sysex_size[4];
-    uint8_t sysex_end;
-} MIDI_CI_DISCOVERY_REPLY_VERSION_1_T;
 
 typedef struct
 {
@@ -100,12 +78,6 @@ typedef struct
 typedef struct
 {
     MIDI_CI_HEADER_T header;
-    uint8_t sysex_end;
-} MIDI_CI_NAK_REPLY_VERSION_1_T;
-
-typedef struct
-{
-    MIDI_CI_HEADER_T header;
     uint8_t original_sub_id2;
     uint8_t nak_code;
     uint8_t nak_data;
@@ -131,24 +103,10 @@ typedef struct
 {
     MIDI_CI_HEADER_T header;
     uint8_t requets_supported;
-    uint8_t sysex_end;
-} MIDI_CI_INQUIRY_PROP_EX_CAPS_REQUEST_VERSION_1_T;
-
-typedef struct
-{
-    MIDI_CI_HEADER_T header;
-    uint8_t requets_supported;
     uint8_t major_version;
     uint8_t minor_version;
     uint8_t sysex_end;
 } MIDI_CI_INQUIRY_PROP_EX_CAPS_REQUEST_VERSION_2_T;
-
-typedef struct
-{
-    MIDI_CI_HEADER_T header;
-    uint8_t requets_supported;
-    uint8_t sysex_end;
-} MIDI_CI_INQUIRY_PROP_EX_CAPS_REPLY_VERSION_1_T;
 
 typedef struct
 {
@@ -160,9 +118,24 @@ typedef struct
 } MIDI_CI_INQUIRY_PROP_EX_CAPS_REPLY_VERSION_2_T;
 #pragma pack(pop)
 
-uint32_t _midi_ci_muid;
+typedef struct
+{
+	uint32_t index;
+	bool overflow_flag;
+	uint8_t data[CI_MAX_HEADER_SIZE];
+} CI_HEADER_DATA;
+
+typedef struct
+{
+	uint32_t index;
+	bool overflow_flag;
+	uint8_t data[CI_MAX_PROPERTY_SIZE];
+} CI_PROPERTY_DATA;
+
+uint32_t _midi_ci_muid = 0;
 ci_process_callback _process_callback = NULL;
-char _ci_property_buffer[256];
+CI_HEADER_DATA _header_data = {0};
+CI_PROPERTY_DATA _property_data = {0};
 
 uint32_t bytes_to_uint32(uint8_t *pbytes)
 {
@@ -200,10 +173,6 @@ void uint16_to_bytes(uint16_t value, uint8_t *pbytes)
     pbytes[1] = (value >> 7) & 0x7F;
 }
 
-void midi20_ci_init()
-{
-    _midi_ci_muid = rand();
-}
 
 void midi20_ci_build_header(MIDI_CI_HEADER_T *prequest_header, MIDI_CI_HEADER_T *preply_header, uint8_t sub_id2)
 {
@@ -217,30 +186,17 @@ void midi20_ci_build_header(MIDI_CI_HEADER_T *prequest_header, MIDI_CI_HEADER_T 
     memcpy(preply_header->destination_muid, prequest_header->source_muid, 4);
 }
 
-void midi20_ci_process_discovery1(uint8_t *pmessage, uint32_t length)
-{
-    MIDI_CI_DISCOVERY_REQUEST_VERSION_1_T *prequest = (MIDI_CI_DISCOVERY_REQUEST_VERSION_1_T*)pmessage;
-
-    MIDI_CI_DISCOVERY_REPLY_VERSION_1_T reply;
-    memset(&reply, 0, sizeof(reply));
-    midi20_ci_build_header(&prequest->header, &reply.header, MIDI20_UNIVERSAL_SYSEX_SUBID2_DISCOVERY_REPLY);
-    reply.manufacturer[0] = MAN_ID_LO;
-    reply.manufacturer[1] = MAN_ID_MD;
-    reply.manufacturer[2] = MAN_ID_HI;
-    uint16_to_bytes(PRODUCT_FAMILY, reply.family);
-    uint16_to_bytes(PRODUCT_MODEL, reply.family_model);
-    uint32_to_bytes(PRODUCT_SOFTWARE_VERSION, reply.software_revision);
-    reply.capability_category = MIDI20_CI_CATEGORY_PROPERTY_EXCHANGE;
-    uint32_to_bytes(CI_MAX_SYSEX_SIZE, reply.max_sysex_size);
-    reply.sysex_end = MIDI_SYSEX_END;
-
-    if(_process_callback)
-        _process_callback((uint8_t*)&reply, sizeof(reply));
-}
-
 void midi20_ci_process_discovery2(uint8_t *pmessage, uint32_t length)
 {
     MIDI_CI_DISCOVERY_REQUEST_VERSION_2_T *prequest = (MIDI_CI_DISCOVERY_REQUEST_VERSION_2_T*)pmessage;
+
+    if(_midi_ci_muid == 0) {
+    	srand(get_ms());
+    	_midi_ci_muid = rand() & 0x0FFFFFFF;
+
+    	memset(&_header_data, 0, sizeof(_header_data));
+    	memset(&_property_data, 0, sizeof(_property_data));
+    }
 
     MIDI_CI_DISCOVERY_REPLY_VERSION_2_T reply;
     memset(&reply, 0, sizeof(reply));
@@ -252,13 +208,14 @@ void midi20_ci_process_discovery2(uint8_t *pmessage, uint32_t length)
     uint16_to_bytes(PRODUCT_MODEL, reply.family_model);
     uint32_to_bytes(PRODUCT_SOFTWARE_VERSION, reply.software_revision);
     reply.capability_category = MIDI20_CI_CATEGORY_PROPERTY_EXCHANGE;
-    uint32_to_bytes(CI_MAX_SYSEX_SIZE, reply.max_sysex_size);
+    uint32_to_bytes(CI_MAX_PROPERTY_SIZE, reply.max_sysex_size);
     reply.output_path_id = prequest->output_path_id;
     reply.function_block = 0;
     reply.sysex_end = MIDI_SYSEX_END;
 
-    if(_process_callback)
+    if(_process_callback) {
         _process_callback((uint8_t*)&reply, sizeof(reply));
+    }
 }
 
 void midi20_ci_process_inquiry_endpoint(uint8_t *pmessage, uint32_t length)
@@ -273,20 +230,9 @@ void midi20_ci_process_inquiry_endpoint(uint8_t *pmessage, uint32_t length)
     strncpy(reply.product_id, PRODUCT_NAME, 15);
     reply.sysex_end = MIDI_SYSEX_END;
 
-    if(_process_callback)
+    if(_process_callback) {
         _process_callback((uint8_t*)&reply, sizeof(reply));
-}
-
-void midi20_ci_nak1(uint8_t *pmessage, uint32_t length)
-{
-    MIDI_CI_HEADER_T *pheader = (MIDI_CI_HEADER_T*)pmessage;
-
-    MIDI_CI_NAK_REPLY_VERSION_1_T reply;
-    memset(&reply, 0, sizeof(reply));
-    midi20_ci_build_header(pheader, &reply.header, MIDI20_UNIVERSAL_SYSEX_SUBID2_NAK);
-
-    if(_process_callback)
-        _process_callback((uint8_t*)&reply, sizeof(reply));
+    }
 }
 
 void midi20_ci_nak2(uint8_t *pmessage, uint32_t length, uint8_t status_code, const char *ptext)
@@ -301,8 +247,9 @@ void midi20_ci_nak2(uint8_t *pmessage, uint32_t length, uint8_t status_code, con
     uint16_to_bytes(32, reply.length);
     strncpy(reply.message, ptext, 31);
 
-    if(_process_callback)
+    if(_process_callback) {
         _process_callback((uint8_t*)&reply, sizeof(reply));
+    }
 }
 
 void midi20_ci_ack(uint8_t *pmessage, uint32_t length, uint8_t status_code, const char *ptext)
@@ -317,22 +264,9 @@ void midi20_ci_ack(uint8_t *pmessage, uint32_t length, uint8_t status_code, cons
     uint16_to_bytes(32, reply.length);
     strncpy(reply.message, ptext, 31);
 
-    if(_process_callback)
+    if(_process_callback) {
         _process_callback((uint8_t*)&reply, sizeof(reply));
-}
-
-void midi20_ci_process_inquiry_prop_ex_caps1(uint8_t *pmessage, uint32_t length)
-{
-    MIDI_CI_INQUIRY_PROP_EX_CAPS_REQUEST_VERSION_1_T *prequest = (MIDI_CI_INQUIRY_PROP_EX_CAPS_REQUEST_VERSION_1_T*)pmessage;
-
-    MIDI_CI_INQUIRY_PROP_EX_CAPS_REPLY_VERSION_1_T reply;
-    memset(&reply, 0, sizeof(reply));
-    midi20_ci_build_header(&prequest->header, &reply.header, MIDI20_UNIVERSAL_SYSEX_SUBID2_INQUIRY_PROP_EX_CAPS_REPLY);
-    reply.requets_supported = 1;
-    reply.sysex_end = MIDI_SYSEX_END;
-
-    if(_process_callback)
-        _process_callback((uint8_t*)&reply, sizeof(reply));
+    }
 }
 
 void midi20_ci_process_inquiry_prop_ex_caps2(uint8_t *pmessage, uint32_t length)
@@ -347,8 +281,9 @@ void midi20_ci_process_inquiry_prop_ex_caps2(uint8_t *pmessage, uint32_t length)
     reply.minor_version = 0;
     reply.sysex_end = MIDI_SYSEX_END;
 
-    if(_process_callback)
+    if(_process_callback) {
         _process_callback((uint8_t*)&reply, sizeof(reply));
+    }
 }
 
 void midi20_ci_reply_prop_get(MIDI_CI_HEADER_T *prequest_header, uint8_t request_id,
@@ -396,8 +331,9 @@ void midi20_ci_reply_prop_get(MIDI_CI_HEADER_T *prequest_header, uint8_t request
         // sysex end
         preply[index++] = MIDI_SYSEX_END;
 
-        if(_process_callback)
+        if(_process_callback) {
             _process_callback(preply, index);
+        }
 
         free(preply);
     }
@@ -417,9 +353,11 @@ void midi20_ci_process_inquiry_prop_ex_get(uint8_t *pmessage, uint32_t length)
     uint32_t index = sizeof(MIDI_CI_HEADER_T);
     uint8_t request_id;
     uint16_t header_data_length;
-    char *pheader_data;
-    uint16_t chunks_in_message;
-    uint16_t chunk_number;
+    uint8_t *pheader_data;
+	uint16_t property_data_length;
+	uint8_t *pproperty_data;
+	uint16_t chunks_in_message;
+	uint16_t chunk_number;
 
     // request id
     request_id = pmessage[index];
@@ -430,7 +368,7 @@ void midi20_ci_process_inquiry_prop_ex_get(uint8_t *pmessage, uint32_t length)
     index += 2;
 
     // header data
-    pheader_data = (char*)&pmessage[index];
+    pheader_data = &pmessage[index];
     index += header_data_length;
 
     // chunks in message
@@ -441,46 +379,72 @@ void midi20_ci_process_inquiry_prop_ex_get(uint8_t *pmessage, uint32_t length)
     chunk_number = bytes_to_uint16(&pmessage[index]);
     index += 2;
 
-    if(header_data_length == 0)
-    {
-        if(pheader->ci_version == 1)
-            midi20_ci_nak1(pmessage, length);
-        else
-            midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_MESSAGE_MALFORMED, "zero length header data");
-
-        return;
+    if(chunk_number <= 1) {
+    	memset(&_header_data, 0, sizeof(_header_data));
+    	memset(&_property_data, 0, sizeof(_property_data));
     }
 
-    // TODO: validate chunk
+    // property data length
+	property_data_length = bytes_to_uint16(&pmessage[index]);
+	index += 2;
 
-    if(strnstr(pheader_data, "resource", header_data_length) != NULL)
-    {
-        uint16_t prop_length = 0;
-        uint16_t total_chunks = 1;
-        uint16_t chunk = 0;
-        MIDI20_CI_RESULT_T result;
+	// property data
+	pproperty_data = &pmessage[index];
+	index += property_data_length;
 
-        while(chunk < total_chunks)
-        {
-            memset(_ci_property_buffer, 0, sizeof(_ci_property_buffer));
-            result = midi20_ci_get_prop_manufacturer(pheader_data, header_data_length, _ci_property_buffer, &prop_length, chunk, &total_chunks);
+	// copy header data into buffer
+	if(header_data_length) {
+		if(_header_data.index + header_data_length < CI_MAX_HEADER_SIZE) {
+			memcpy(&_header_data.data[_header_data.index], pheader_data, header_data_length);
+			_header_data.index += header_data_length;
+		}
+		else
+		{
+			midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_NAK, "memory overflow");
+			return;
+		}
+	}
 
-            if(result == MIDI20_CI_RESULT_SUCCESS)
-            {
-                midi20_ci_reply_prop_get(pheader, request_id, "{\"status\":200}", _ci_property_buffer, chunk+1, total_chunks);
-                chunk++;
-            }
-            else
-            {
-                if(pheader->ci_version == 1)
-                    midi20_ci_nak1(pmessage, length);
-                else
-                    midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_CI_MESSAGE_NOT_SUPPORTED, "unsupported resource");
+	// copy property data into buffer
+	if(property_data_length) {
+		if(_property_data.index + property_data_length < CI_MAX_HEADER_SIZE) {
+			memcpy(&_property_data.data[_property_data.index], pproperty_data, property_data_length);
+			_property_data.index += property_data_length;
+		}
+		else
+		{
+			midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_NAK, "memory overflow");
+			return;
+		}
+	}
 
-                break;
-            }
-        }
-    }
+	if(chunk_number == chunks_in_message)
+	{
+		if(strnstr(_header_data.data, "resource", _header_data.index) != NULL)
+		{
+			uint16_t prop_length = 0;
+			uint16_t total_chunks = 1;
+			uint16_t chunk = 0;
+			MIDI20_CI_RESULT_T result;
+
+			while(chunk < total_chunks)
+			{
+				memset(&_property_data, 0, sizeof(_property_data));
+				result = midi20_ci_get_prop_manufacturer(pheader_data, header_data_length, _property_data.data, &prop_length, chunk, &total_chunks);
+
+				if(result == MIDI20_CI_RESULT_SUCCESS)
+				{
+					midi20_ci_reply_prop_get(pheader, request_id, "{\"status\":200}", _property_data.data, chunk+1, total_chunks);
+					chunk++;
+				}
+				else
+				{
+					midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_CI_MESSAGE_NOT_SUPPORTED, "unsupported resource");
+					break;
+				}
+			}
+		}
+	}
 }
 
 void midi20_ci_process_inquiry_prop_ex_set(uint8_t *pmessage, uint32_t length)
@@ -493,32 +457,39 @@ void midi20_ci_process(uint8_t *pmessage, uint32_t length, ci_process_callback c
     _process_callback = callback;
 
     // min length requirement
-    if(length < 15)
+    if(length < 15) {
         return;
+    }
 
     // validate start
-    if(pheader->sysex_start != MIDI_SYSEX_START)
+    if(pheader->sysex_start != MIDI_SYSEX_START) {
         return;
+    }
 
     // validate universal sysex
-    if(pheader->universal_sysex != MIDI20_UNIVERSAL_SYSEX)
+    if(pheader->universal_sysex != MIDI20_UNIVERSAL_SYSEX) {
         return;
+    }
 
     // verify this is a ci message
-    if(pheader->sub_id1 != MIDI20_UNIVERSAL_SYSEX_SUBID1_CI)
+    if(pheader->sub_id1 != MIDI20_UNIVERSAL_SYSEX_SUBID1_CI) {
         return;
+    }
 
     // process discovery message
     if(pheader->sub_id2 == MIDI20_UNIVERSAL_SYSEX_SUBID2_DISCOVERY)
     {
-        if(pheader->ci_version == 1)
-            midi20_ci_process_discovery1(pmessage, length);
-        else
-            midi20_ci_process_discovery2(pmessage, length);
+    	midi20_ci_process_discovery2(pmessage, length);
         return;
     }
+
+    // muid must be valid for all other messages
+    if(bytes_to_uint32(pheader->destination_muid) != _midi_ci_muid) {
+    	return;
+    }
+
     // process inquiry endpoint message
-    else if(pheader->sub_id2 == MIDI20_UNIVERSAL_SYSEX_SUBID2_INQUIRY_ENDPOINT)
+    if(pheader->sub_id2 == MIDI20_UNIVERSAL_SYSEX_SUBID2_INQUIRY_ENDPOINT)
     {
         midi20_ci_process_inquiry_endpoint(pmessage, length);
         return;
@@ -526,10 +497,7 @@ void midi20_ci_process(uint8_t *pmessage, uint32_t length, ci_process_callback c
     // process inquiry property exchange
     if(pheader->sub_id2 == MIDI20_UNIVERSAL_SYSEX_SUBID2_INQUIRY_PROP_EX_CAPS)
     {
-        if(pheader->ci_version == 1)
-            midi20_ci_process_inquiry_prop_ex_caps1(pmessage, length);
-        else
-            midi20_ci_process_inquiry_prop_ex_caps2(pmessage, length);
+        midi20_ci_process_inquiry_prop_ex_caps2(pmessage, length);
         return;
     }
     // process inquiry property exchange get
@@ -547,10 +515,7 @@ void midi20_ci_process(uint8_t *pmessage, uint32_t length, ci_process_callback c
     // process unhandled message with nak
     else
     {
-        if(pheader->ci_version == 1)
-            midi20_ci_nak1(pmessage, length);
-        else
-            midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_CI_MESSAGE_NOT_SUPPORTED, "message not supported");
+        midi20_ci_nak2(pmessage, length, MIDI20_CI_NAK_STATUS_CODE_CI_MESSAGE_NOT_SUPPORTED, "message not supported");
         return;
     }
 }

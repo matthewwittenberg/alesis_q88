@@ -165,7 +165,7 @@ const uint8_t gu8ConfigDescriptor[] =
 
 #elif MIDI_VERSION == 2
 
-#define USBD_MIDI20_CONFIG_DESC_SIZE 137
+#define USBD_MIDI20_CONFIG_DESC_SIZE 139
 const uint8_t gu8ConfigDescriptor[] =
 {
     0x09,                               /* bLength */
@@ -320,11 +320,12 @@ const uint8_t gu8ConfigDescriptor[] =
 	0x00,                               /* bInterval */
 
 	/* OUT ENDPOINT MS */
-	0x05,                               /* bLength */
+	0x06,                               /* bLength */
 	0x25,                               /* bDescriptorType */
 	0x02,                               /* bDescriptorSubtype */
-	0x01,                               /* bNumGrpTrmBlock */
+	0x02,                               /* bNumGrpTrmBlock */
 	0x01,                               /* baAssoGrpTrmBlkID */
+	0x02,                               /* baAssoGrpTrmBlkID */
 
     /* IN ENDPOINT */
     0x07,                               /* bLength */
@@ -336,16 +337,17 @@ const uint8_t gu8ConfigDescriptor[] =
     0x00,                               /* bInterval */
 
     /* IN ENDPOINT MS */
-    0x05,                               /* bLength */
+    0x06,                               /* bLength */
     0x25,                               /* bDescriptorType */
     0x02,                               /* bDescriptorSubtype */
-    0x01,                               /* bNumGrpTrmBlock */
+    0x02,                               /* bNumGrpTrmBlock */
     0x01,                               /* baAssoGrpTrmBlkID */
+	0x02,                               /* baAssoGrpTrmBlkID */
 };
 
 /* MS 2.0 terminal block descriptor */
-#define USBD_MIDI20_TERM_BLOCK_DESC_SIZE 18
-const uint8_t USBD_MIDI20_TERM_BLOCK_DESC[] =
+#define USBD_MIDI20_TERM_BLOCK_DESC_SIZE 31
+uint8_t USBD_MIDI20_TERM_BLOCK_DESC[] =
 {
     0x05,                               /* bLength */
     0x26,                               /* bDescriptorType */
@@ -353,7 +355,7 @@ const uint8_t USBD_MIDI20_TERM_BLOCK_DESC[] =
     USBD_MIDI20_TERM_BLOCK_DESC_SIZE,   /* wTotalLength */
     0x00,
 
-    /* TERMINAL BLOCK */
+    /* TERMINAL BLOCK 1 - MAIN */
     0x0D,                               /* bLength */
     0x26,                               /* bDescriptorType */
     0x02,                               /* bDescriptorSubtype */
@@ -363,10 +365,25 @@ const uint8_t USBD_MIDI20_TERM_BLOCK_DESC[] =
     0x01,                               /* nNumGroupTrm */
     0x00,                               /* iBlockItem */
     0x11,                               /* bMIDIProtocol */
-    0x01,                               /* wMaxInputBandwidth */
+    0x00,                               /* wMaxInputBandwidth */
     0x00,
     0x00,                               /* wMaxOutputBandwidth */
     0x00,
+
+	/* TERMINAL BLOCK 1 - OUT PORT */
+	0x0D,                               /* bLength */
+	0x26,                               /* bDescriptorType */
+	0x02,                               /* bDescriptorSubtype */
+	0x02,                               /* bGrpTrmBlkID */
+	0x00,                               /* bGrpTrmBlkType */
+	0x01,                               /* nGroupTrm */
+	0x01,                               /* nNumGroupTrm */
+	0x00,                               /* iBlockItem */
+	0x03,                               /* bMIDIProtocol */
+	0x01,                               /* wMaxInputBandwidth */
+	0x00,
+	0x01,                               /* wMaxOutputBandwidth */
+	0x00,
 };
 
 #endif
