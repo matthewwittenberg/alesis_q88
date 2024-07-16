@@ -108,10 +108,51 @@ void midi_serial_program_change(uint8_t channel, uint8_t program)
 	midi_serial_driver_tx(message, sizeof(message));
 }
 
+void midi_serial_time_code(uint8_t code)
+{
+	uint8_t message[2];
+	message[0] = MIDI_QUARTER_FRAME_MESSAGE;
+	message[1] = code & 0x7F;
+	midi_serial_driver_tx(message, sizeof(message));
+}
+
+void midi_serial_song_position(uint16_t position)
+{
+	uint8_t message[3];
+	message[0] = MIDI_SONG_POSITION_POINTER;
+	message[1] = position & 0x7F;
+	message[1] = (position >> 7) & 0x7F;
+	midi_serial_driver_tx(message, sizeof(message));
+}
+
+void midi_serial_song_select(uint8_t song)
+{
+	uint8_t message[2];
+	message[0] = MIDI_SONG_SELECT;
+	message[1] = song & 0x7F;
+	midi_serial_driver_tx(message, sizeof(message));
+}
+
+void midi_serial_generic_status(uint8_t status)
+{
+	uint8_t message[1];
+	message[0] = status;
+	midi_serial_driver_tx(message, sizeof(message));
+}
+
+void midi_serial_raw(uint8_t *pdata, uint32_t length)
+{
+	midi_serial_driver_tx(pdata, length);
+}
+
 void midi_serial_task()
 {
 }
 
-void midi_serial_register_callback(message_callback callback)
+void midi_serial_register_message_callback(message_callback callback)
+{
+}
+
+void midi_serial_register_sysex_callback(message_callback callback)
 {
 }

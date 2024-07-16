@@ -165,7 +165,7 @@ const uint8_t gu8ConfigDescriptor[] =
 
 #elif MIDI_VERSION == 2
 
-#define USBD_MIDI20_CONFIG_DESC_SIZE 139
+#define USBD_MIDI20_CONFIG_DESC_SIZE 171
 const uint8_t gu8ConfigDescriptor[] =
 {
     0x09,                               /* bLength */
@@ -202,7 +202,7 @@ const uint8_t gu8ConfigDescriptor[] =
 
 	/* MIDI STREAM INTERFACE */
 	0x09,                               /* bLength */
-	DESC_INTERFACE,            /* bDescriptorType */
+	DESC_INTERFACE,                     /* bDescriptorType */
 	0x01,                               /* bInterfaceNumber */
 	0x00,                               /* bAlternateSetting */
 	0x02,                               /* bNumEndpoints */
@@ -217,18 +217,18 @@ const uint8_t gu8ConfigDescriptor[] =
 	0x01,                               /* bDescriptorSubtype */
 	0x00,                               /* bcdMSC */
 	0x01,
-	54,                                 /* wTotalLength */
+	86,                                 /* wTotalLength */
 	0x00,
 
-	/* MIDI IN JACK */
+	/* MIDI IN 1 JACK */
 	0x06,                               /* bLength */
 	0x24,                               /* bDescriptorType */
 	0x02,                               /* bDescriptorSubtype */
 	0x01,                               /* bJackType */
 	0x01,                               /* bJackID */
-	0x00,                               /* iJack */
+	0x04,                               /* iJack */
 
-	/* MIDI IN JACK */
+	/* MIDI IN 1 JACK */
 	0x06,                               /* bLength */
 	0x24,                               /* bDescriptorType */
 	0x02,                               /* bDescriptorSubtype */
@@ -236,7 +236,7 @@ const uint8_t gu8ConfigDescriptor[] =
 	0x02,                               /* bJackID */
 	0x00,                               /* iJack */
 
-	/* MIDI OUT JACK */
+	/* MIDI OUT 1 JACK */
 	0x09,                               /* bLength */
 	0x24,                               /* bDescriptorType */
 	0x03,                               /* bDescriptorSubtype */
@@ -245,9 +245,9 @@ const uint8_t gu8ConfigDescriptor[] =
 	0x01,                               /* bNrInputPins */
 	0x02,                               /* baSourceID1 */
 	0x01,                               /* BaSourcePin1 */
-	0x00,                               /* iJack */
+	0x04,                               /* iJack */
 
-	/* MIDI OUT JACK */
+	/* MIDI OUT 1 JACK */
 	0x09,                               /* bLength */
 	0x24,                               /* bDescriptorType */
 	0x03,                               /* bDescriptorSubtype */
@@ -255,6 +255,44 @@ const uint8_t gu8ConfigDescriptor[] =
 	0x04,                               /* bJackID */
 	0x01,                               /* bNrInputPins */
 	0x01,                               /* baSourceID1 */
+	0x01,                               /* BaSourcePin1 */
+	0x00,                               /* iJack */
+
+	/* MIDI IN 2 JACK */
+	0x06,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x02,                               /* bDescriptorSubtype */
+	0x01,                               /* bJackType */
+	0x05,                               /* bJackID */
+	0x05,                               /* iJack */
+
+	/* MIDI IN 2 JACK */
+	0x06,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x02,                               /* bDescriptorSubtype */
+	0x02,                               /* bJackType */
+	0x06,                               /* bJackID */
+	0x00,                               /* iJack */
+
+	/* MIDI OUT 2 JACK */
+	0x09,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x03,                               /* bDescriptorSubtype */
+	0x01,                               /* bJackType */
+	0x07,                               /* bJackID */
+	0x01,                               /* bNrInputPins */
+	0x06,                               /* baSourceID1 */
+	0x01,                               /* BaSourcePin1 */
+	0x05,                               /* iJack */
+
+	/* MIDI OUT 2 JACK */
+	0x09,                               /* bLength */
+	0x24,                               /* bDescriptorType */
+	0x03,                               /* bDescriptorSubtype */
+	0x02,                               /* bJackType */
+	0x08,                               /* bJackID */
+	0x01,                               /* bNrInputPins */
+	0x05,                               /* baSourceID1 */
 	0x01,                               /* BaSourcePin1 */
 	0x00,                               /* iJack */
 
@@ -268,11 +306,12 @@ const uint8_t gu8ConfigDescriptor[] =
 	0x00,                               /* bInterval */
 
 	/* OUT ENDPOINT MS */
-	0x05,                               /* bLength */
+	0x06,                               /* bLength */
 	0x25,                               /* bDescriptorType */
 	0x01,                               /* bDescriptorSubtype */
-	0x01,                               /* bNumEmbMIDIJack */
+	0x02,                               /* bNumEmbMIDIJack */
 	0x01,                               /* baAssocJackID */
+	0x05,                               /* baAssocJackID */
 
 	/* IN ENDPOINT */
 	0x07,                               /* bLength */
@@ -284,11 +323,12 @@ const uint8_t gu8ConfigDescriptor[] =
 	0x00,                               /* bInterval */
 
 	/* IN ENDPOINT MS */
-	0x05,                               /* bLength */
+	0x06,                               /* bLength */
 	0x25,                               /* bDescriptorType */
 	0x01,                               /* bDescriptorSubtype */
-	0x01,                               /* bNumEmbMIDIJack */
+	0x02,                               /* bNumEmbMIDIJack */
 	0x03,                               /* baAssocJackID */
+	0x07,                               /* baAssocJackID */
 
     /* MIDI 2.0 STREAM INTERFACE */
     0x09,                               /* bLength */
@@ -413,19 +453,35 @@ uint8_t gu8ProductStringDesc[] =
 };
 
 
-const uint8_t gu8StringSerial[26] =
+const uint8_t gu8StringSerial[] =
 {
     22,             // bLength
     DESC_STRING,    // bDescriptorType
     '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0, '7', 0, '8', 0, '9', 0
 };
 
-const uint8_t *gpu8UsbString[4] =
+const uint8_t gu8StringJackKeyboard[] =
+{
+    26,             // bLength
+    DESC_STRING,    // bDescriptorType
+    'Q', 0, '8', 0, '8', 0, ' ', 0, 'K', 0, 'e', 0, 'y', 0, 'b', 0, 'o', 0, 'a', 0, 'r', 0, 'd', 0
+};
+
+const uint8_t gu8StringJackPort[] =
+{
+    26,             // bLength
+    DESC_STRING,    // bDescriptorType
+    'Q', 0, '8', 0, '8', 0, ' ', 0, 'O', 0, 'u', 0, 't', 0, ' ', 0, 'P', 0, 'o', 0, 'r', 0, 't', 0
+};
+
+const uint8_t *gpu8UsbString[] =
 {
     gu8StringLang,
     gu8VendorStringDesc,
     gu8ProductStringDesc,
-    gu8StringSerial
+    gu8StringSerial,
+	gu8StringJackKeyboard,
+	gu8StringJackPort
 };
 
 const S_USBD_INFO_T gsInfo =

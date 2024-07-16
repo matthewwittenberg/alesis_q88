@@ -32,6 +32,7 @@
 #define CIN_CHANNEL_PRESSURE 0xD
 #define CIN_PITCH_BEND 0xE
 #define CIN_SINGLE_BYTE 0xF
+#define CIN_MASK 0x0F
 
 // ==============================================
 // MIDI 2.0 MESSAGE TYPE
@@ -200,5 +201,6 @@
 #define MIDI_CONT_POLY_MODE_ON 127
 
 typedef void (*message_callback)(uint8_t group, uint8_t status, uint8_t byte_2, uint8_t byte_3);
+typedef void (*sysex_callback)(uint8_t cable, uint8_t *pbytes, uint32_t length);
 
 #endif /* MIDI_SPEC_H_ */

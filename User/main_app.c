@@ -25,9 +25,9 @@
 #define MIDI_VELOCITY_LOOKUP_DIVIDER 15 // fit slowest into 1024 positions
 #define MIDI_1_0_VELOCITY_DIVIDER (KEYBOARD_SLOWEST_VELOCITY / 127)
 #define MIDI_2_0_VELOCITY_MULTIPLIER (65536 / KEYBOARD_SLOWEST_VELOCITY)
-//#define USE_MIDI_SENSE	// comment out to stop sense
+#define USE_MIDI_SENSE	// comment out to stop sense
 #define MIDI_SENSE_RATE_MS 1000
-//#define USE_MIDI_NOTE_OFF	// comment out to use note on with velocity 0 instead
+#define USE_MIDI_NOTE_OFF	// comment out to use note on with velocity 0 instead
 
 #define ADVANCED_NOTE_CANCEL 24
 #define ADVANCED_NOTE_CHANNEL1 26
@@ -483,8 +483,8 @@ void sense_task()
 
 	if(sense_tick + MIDI_SENSE_RATE_MS < get_ms())
 	{
-		MIDI_USB_DEVICE.sense();
-		MIDI_SERIAL_DEVICE.sense();
+		MIDI_USB_DEVICE.generic_status(MIDI_SENSE);
+		MIDI_SERIAL_DEVICE.generic_status(MIDI_SENSE);
 
 		sense_tick += MIDI_SENSE_RATE_MS;
 	}
@@ -498,36 +498,58 @@ void usb_device_message_handler(uint8_t group, uint8_t status, uint8_t byte_2, u
 		return;
 	}
 
-	if((status & 0xF0) == MIDI_NOTE_OFF){
+	if((status & 0xF0) == MIDI_NOTE_OFF) {
 		MIDI_SERIAL_DEVICE.note_off(byte_2, status & 0x0F, byte_3);
 	}
-	else if((status & 0xF0) == MIDI_NOTE_ON){
+	else if((status & 0xF0) == MIDI_NOTE_ON) {
 		MIDI_SERIAL_DEVICE.note_on(byte_2, status & 0x0F, byte_3);
 	}
-	else if((status & 0xF0) == MIDI_AFTERTOUCH){
+	else if((status & 0xF0) == MIDI_AFTERTOUCH) {
 		MIDI_SERIAL_DEVICE.aftertouch(byte_2, status & 0x0F, byte_3);
 	}
-	else if((status & 0xF0) == MIDI_CONTROLLER){
+	else if((status & 0xF0) == MIDI_CONTROLLER) {
 		MIDI_SERIAL_DEVICE.controller(byte_2, status & 0x0F, byte_3);
 	}
-	else if((status & 0xF0) == MIDI_PROGRAM_CHANGE){
+	else if((status & 0xF0) == MIDI_PROGRAM_CHANGE) {
 		MIDI_SERIAL_DEVICE.program_change(status & 0x0F, byte_2);
 	}
-	else if((status & 0xF0) == MIDI_CHANNEL_PRESSURE){
+	else if((status & 0xF0) == MIDI_CHANNEL_PRESSURE) {
 		MIDI_SERIAL_DEVICE.channel_pressure(status & 0x0F, byte_2);
 	}
-	else if((status & 0xF0) == MIDI_PITCH_WHEEL){
+	else if((status & 0xF0) == MIDI_PITCH_WHEEL) {
 		int32_t pitch = byte_2 | (byte_3 << 7);
 		pitch -= 8192;
 		MIDI_SERIAL_DEVICE.pitch_wheel(status & 0x0F, pitch);
 	}
+	else if((status & 0xF0) == MIDI_QUARTER_FRAME_MESSAGE) {
+		MIDI_SERIAL_DEVICE.time_code(byte_2);
+	}
+	else if((status & 0xF0) == MIDI_SONG_POSITION_POINTER) {
+		MIDI_SERIAL_DEVICE.song_position(byte_2 | (byte_3 << 7));
+	}
+	else if((status & 0xF0) == MIDI_SONG_SELECT) {
+		MIDI_SERIAL_DEVICE.song_select(byte_2);
+	}
+	else {
+		MIDI_SERIAL_DEVICE.generic_status(status);
+	}
+}
+
+void usb_device_sysex_callback(uint8_t cable, uint8_t *pbytes, uint32_t length)
+{
+	if(cable != 1) {
+		return;
+	}
+
+	MIDI_SERIAL_DEVICE.raw(pbytes, length);
 }
 
 void main_app()
 {
 	keyboard_register_callback(keyboard_event_handler);
 	keypad_register_callback(keypad_event_handler);
-	MIDI_USB_DEVICE.register_callback(usb_device_message_handler);
+	MIDI_USB_DEVICE.register_message_callback(usb_device_message_handler);
+	MIDI_USB_DEVICE.register_sysex_callback(usb_device_sysex_callback);
 
 	// 2 blinks
 	for(uint32_t i=0; i<2; i++)

@@ -18,6 +18,7 @@
 uint8_t _midi20_buffer[MIDI20_BUFFER_LENGTH];
 uint32_t _midi20_buffer_index = 0;
 message_callback _message_callback = NULL;
+sysex_callback _sysex_callback = NULL;
 
 void midi_usb_init()
 {
@@ -244,11 +245,73 @@ void midi_usb_task()
 						_midi20_buffer_index = 0;
 					}
 				}
-				// 10 voice
+				// 10 voice?
 				else if(message_type == MIDI20_MESSAGE_TYPE_10_CHANNEL_VOICE)
 				{
 					if(_message_callback) {
 						_message_callback(message[3] & 0x0F, message[2], message[1], message[0]);
+					}
+				}
+				// system?
+				else if(message_type == MIDI20_MESSAGE_TYPE_SYSTEM)
+				{
+					if(_message_callback) {
+						_message_callback(message[3] & 0x0F, message[2], message[1], message[0]);
+					}
+				}
+
+				message_index = 0;
+			}
+		}
+	}
+	else
+	{
+		while(midi_usb_driver_rx(&byte, 1))
+		{
+			message[message_index++] = byte;
+			if(message_index == 4)
+			{
+				if((message[0] & CIN_MASK) == CIN_SYSEX_START)
+				{
+					_midi20_buffer[0] = message[1];
+					_midi20_buffer[1] = message[2];
+					_midi20_buffer[2] = message[3];
+
+					if(_sysex_callback) {
+						_sysex_callback((message[0] & 0xF0) >> 4, _midi20_buffer, 3);
+					}
+				}
+				else if((message[0] & CIN_MASK) == CIN_SINGLE_BYTE_COMMON_OR_SYSEX_END_ONE)
+				{
+					_midi20_buffer[0] = message[1];
+
+					if(_sysex_callback) {
+						_sysex_callback((message[0] & 0xF0) >> 4, _midi20_buffer, 1);
+					}
+				}
+				else if((message[0] & CIN_MASK) == CIN_SYSEX_END_TWO)
+				{
+					_midi20_buffer[0] = message[1];
+					_midi20_buffer[1] = message[2];
+
+					if(_sysex_callback) {
+						_sysex_callback((message[0] & 0xF0) >> 4, _midi20_buffer, 2);
+					}
+				}
+				else if((message[0] & CIN_MASK) == CIN_SYSEX_END_THREE)
+				{
+					_midi20_buffer[0] = message[1];
+					_midi20_buffer[1] = message[2];
+					_midi20_buffer[2] = message[3];
+
+					if(_sysex_callback) {
+						_sysex_callback((message[0] & 0xF0) >> 4, _midi20_buffer, 3);
+					}
+				}
+				else
+				{
+					if(_message_callback) {
+						_message_callback((message[0] & 0xF0) >> 4, message[1], message[2], message[3]);
 					}
 				}
 
@@ -496,24 +559,6 @@ void midi_usb_volume(uint8_t channel, uint16_t volume)
 	}
 }
 
-void midi_usb_sense()
-{
-	if(IS_MIDI_2_0)
-	{
-		uint8_t message[4];
-		message[3] = MIDI20_MESSAGE_TYPE_SYSTEM;
-		message[2] = MIDI_SENSE;
-		message[1] = 0;
-		message[0] = 0;
-		midi_usb_driver_tx(message, sizeof(message));
-	}
-	else
-	{
-		uint32_t message = CIN_SINGLE_BYTE | (MIDI_SENSE << 8);
-		midi_usb_driver_tx((uint8_t*)&message, 4);
-	}
-}
-
 void midi_usb_sustain(uint8_t channel, bool on)
 {
 	if(IS_MIDI_2_0)
@@ -578,8 +623,92 @@ void midi_usb_program_change(uint8_t channel, uint8_t program)
 	}
 }
 
-void midi_usb_register_callback(message_callback callback)
+void midi_usb_time_code(uint8_t code)
+{
+	if(IS_MIDI_2_0)
+	{
+		uint8_t message[4];
+		message[3] = MIDI20_MESSAGE_TYPE_SYSTEM;
+		message[2] = MIDI_QUARTER_FRAME_MESSAGE;
+		message[1] = code;
+		message[0] = 0;
+		midi_usb_driver_tx(message, sizeof(message));
+	}
+	else
+	{
+		uint32_t message = CIN_TWO_BYTE_COMMON | (MIDI_QUARTER_FRAME_MESSAGE << 8) | (code << 16);
+		midi_usb_driver_tx((uint8_t*)&message, 4);
+	}
+}
+
+void midi_usb_song_position(uint16_t position)
+{
+	if(IS_MIDI_2_0)
+	{
+		uint8_t message[4];
+		message[3] = MIDI20_MESSAGE_TYPE_SYSTEM;
+		message[2] = MIDI_SONG_POSITION_POINTER;
+		message[1] = position & 0x7F;
+		message[0] = (position >> 7) & 0x7F;
+		midi_usb_driver_tx(message, sizeof(message));
+	}
+	else
+	{
+		uint8_t low = position & 0x7F;
+		uint8_t high = (position >> 7) & 0x7F;
+		uint32_t message = CIN_THREE_BYTE_COMMON | (MIDI_SONG_POSITION_POINTER << 8) | (low << 16) | (high << 24);
+		midi_usb_driver_tx((uint8_t*)&message, 4);
+	}
+}
+
+void midi_usb_song_select(uint8_t song)
+{
+	if(IS_MIDI_2_0)
+	{
+		uint8_t message[4];
+		message[3] = MIDI20_MESSAGE_TYPE_SYSTEM;
+		message[2] = MIDI_SONG_SELECT;
+		message[1] = song;
+		message[0] = 0;
+		midi_usb_driver_tx(message, sizeof(message));
+	}
+	else
+	{
+		uint32_t message = CIN_TWO_BYTE_COMMON | (MIDI_SONG_SELECT << 8) | (song << 16);
+		midi_usb_driver_tx((uint8_t*)&message, 4);
+	}
+}
+
+void midi_usb_generic_status(uint8_t status)
+{
+	if(IS_MIDI_2_0)
+	{
+		uint8_t message[4];
+		message[3] = MIDI20_MESSAGE_TYPE_SYSTEM;
+		message[2] = status;
+		message[1] = 0;
+		message[0] = 0;
+		midi_usb_driver_tx(message, sizeof(message));
+	}
+	else
+	{
+		uint32_t message = CIN_SINGLE_BYTE | (status << 8);
+		midi_usb_driver_tx((uint8_t*)&message, 4);
+	}
+}
+
+void midi_usb_raw(uint8_t *pdata, uint32_t length)
+{
+	midi_usb_driver_tx(pdata, 4);
+}
+
+void midi_usb_register_message_callback(message_callback callback)
 {
 	_message_callback = callback;
+}
+
+void midi_usb_register_sysex_callback(sysex_callback callback)
+{
+	_sysex_callback = callback;
 }
 

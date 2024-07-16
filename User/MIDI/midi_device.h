@@ -22,11 +22,16 @@ typedef struct
     void (*controller)(uint8_t index, uint8_t channel, uint32_t value);
     void (*modulation_wheel)(uint8_t channel, uint16_t modulation);
     void (*volume)(uint8_t channel, uint16_t volume);
-    void (*sense)();
     void (*sustain)(uint8_t channel, bool on);
     void (*program_change)(uint8_t channel, uint8_t program);
+    void (*time_code)(uint8_t code);
+    void (*song_position)(uint16_t position);
+    void (*song_select)(uint8_t song);
+    void (*generic_status)(uint8_t status);
+    void (*raw)(uint8_t *pdata, uint32_t length);
     void (*task)();
-    void (*register_callback)(message_callback callback);
+    void (*register_message_callback)(message_callback callback);
+    void (*register_sysex_callback)(sysex_callback callback);
     MIDI_VERSION_T version;
 } MIDI_DEVICE_T;
 
